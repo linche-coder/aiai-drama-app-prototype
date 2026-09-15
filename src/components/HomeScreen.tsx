@@ -15,10 +15,14 @@ export function HomeScreen({ channel, setChannel, hasHistory, onSearch, onMember
   const featured = items.slice(0, Math.min(5, items.length));
   return <>
     <header className="topbar">
-      <button className="home-search" onClick={onSearch}><Search size={18} /><span>搜索短剧、漫剧</span></button>
+      <button className="home-search" onClick={onSearch} aria-label="搜索短剧、漫剧"><Search size={21} /></button>
+      <div className="channel-tabs" role="tablist" aria-label="内容频道">
+        {(['推荐', '短剧', '漫剧'] as Channel[]).map((name) => (
+          <button role="tab" aria-selected={channel === name} key={name} onClick={() => setChannel(name)}>{name}</button>
+        ))}
+      </div>
       <button className="member-button" onClick={onMember}><Crown size={15} />会员</button>
     </header>
-    <div className="channel-tabs" role="tablist" aria-label="内容频道">{(['推荐', '短剧', '漫剧'] as Channel[]).map((name) => <button role="tab" aria-selected={channel === name} key={name} onClick={() => setChannel(name)}>{name}{channel === name && <motion.span layoutId="channel-pill" />}</button>)}</div>
     <AnimatePresence mode="wait"><motion.main key={channel} initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: .2 }}>
       <HeroCarousel items={featured} onOpen={onOpen} />
       {hasHistory && <section className="section continue-section">
@@ -40,5 +44,3 @@ export function HomeScreen({ channel, setChannel, hasHistory, onSearch, onMember
     </motion.main></AnimatePresence>
   </>;
 }
-
-import React from 'react';
