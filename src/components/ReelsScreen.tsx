@@ -145,15 +145,15 @@ export function ReelsScreen({ paused, onSearch, onOpen }: { paused: boolean; onS
             }}
           />}
           <span className="reel-contrast" />
-          {!isLoaded && !hasError && <span className="reel-loading"><LoaderCircle size={24} />加载预览</span>}
-          {hasError && <div className="reel-error" onClick={(event) => event.stopPropagation()}><strong>视频预览加载失败</strong><span>封面仍可浏览，请检查本地资源后重试。</span><button onClick={() => { setErrors((current) => { const next = new Set(current); next.delete(item.id); return next; }); requestAnimationFrame(() => videos.current[itemIndex]?.load()); }}><RotateCcw size={16} />重试</button></div>}
+          {!isLoaded && !hasError && <span className="reel-loading"><LoaderCircle size={24} />正在加载</span>}
+          {hasError && <div className="reel-error" onClick={(event) => event.stopPropagation()}><strong>视频加载失败</strong><span>当前内容暂时无法播放，请稍后重试。</span><button onClick={() => { setErrors((current) => { const next = new Set(current); next.delete(item.id); return next; }); requestAnimationFrame(() => videos.current[itemIndex]?.load()); }}><RotateCcw size={16} />重试</button></div>}
           <AnimatePresence>{isCurrent && !playing && !hasError && <motion.span className="reel-play-state" initial={{ opacity: 0, scale: .88 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}><Play size={31} fill="currentColor" /></motion.span>}</AnimatePresence>
           <AnimatePresence>{isCurrent && heartBurst > 0 && <motion.span key={heartBurst} className="reel-heart-burst" initial={{ opacity: 0, scale: .6 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.18 }} transition={{ duration: .3 }}><Heart size={68} fill="currentColor" /></motion.span>}</AnimatePresence>
           <div className="reel-actions" onClick={(event) => event.stopPropagation()}>
             <button aria-label="收藏" aria-pressed={isSaved} data-active={isSaved} onClick={() => toggleInSet('aiai-reel-saved', item.id, saved, setSaved)}><Bookmark fill={isSaved ? 'currentColor' : 'none'} /><span>收藏</span></button>
             <button aria-label="评论" onClick={() => setCommentsFor(item)}><MessageCircle fill="currentColor" /><span>1,286</span></button>
             <button aria-label="点赞" aria-pressed={isLiked} data-active={isLiked} onClick={() => isLiked ? toggleInSet('aiai-reel-liked', item.id, liked, setLiked) : like(item)}><Heart fill={isLiked ? 'currentColor' : 'none'} /><span>{isLiked ? '2.4万' : '2.3万'}</span></button>
-            <button aria-label="分享" onClick={() => showToast('分享面板已触发 · 原型反馈')}><Send fill="currentColor" /><span>分享</span></button>
+            <button aria-label="分享" onClick={() => showToast('分享面板已打开')}><Send fill="currentColor" /><span>分享</span></button>
           </div>
           <div className="reel-copy" onClick={(event) => event.stopPropagation()}>
             <span className="reel-kicker">{item.genre} · {item.channel}</span>
@@ -178,8 +178,8 @@ export function ReelsScreen({ paused, onSearch, onOpen }: { paused: boolean; onS
     <Sheet open={!!commentsFor} title={`评论 · ${commentsFor?.title ?? ''}`} onClose={() => setCommentsFor(null)}><div className="comment-list">
       <p><i>剧迷小满</i><span>这个开场很抓人，已经想继续看下去了。</span></p>
       <p><i>月下追剧</i><span>画面氛围和题材很搭，期待完整剧集。</span></p>
-      <p><i>一眼入戏</i><span>演示评论仅用于确认底部抽屉交互。</span></p>
-      <label><input placeholder="说点什么…" /><button onClick={() => showToast('评论已记录 · 本次会话')}>发送</button></label>
+      <p><i>一眼入戏</i><span>这个反转很有意思，等更新。</span></p>
+      <label><input placeholder="说点什么…" /><button onClick={() => showToast('评论已发送')}>发送</button></label>
     </div></Sheet>
   </main>;
 }

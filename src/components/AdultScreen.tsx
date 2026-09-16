@@ -23,7 +23,7 @@ function AdultPosterGrid({
             <img src={item.cover} alt={item.title} loading="lazy" />
             <span className="adult-cover-shade" />
             {item.original && <span className="adult-original">原创</span>}
-            <span className="adult-status">{item.status.replace(' · 演示', '')}</span>
+            <span className="adult-status">{item.status}</span>
           </button>
           <div className="adult-card-copy">
             <button onClick={() => onOpen(item)}><strong>{item.title}</strong><small>{item.genre} · {item.channel}</small></button>
@@ -75,7 +75,7 @@ function AdultHero({ onOpen }: { onOpen: (item: AdultDrama) => void }) {
             <small>今夜精选 · {banner.genre}</small>
             <strong>{banner.title}</strong>
             <span>{banner.synopsis}</span>
-            <i><Play size={14} fill="currentColor" />立即预览</i>
+            <i><Play size={14} fill="currentColor" />立即观看</i>
           </span>
         </motion.button>
       </AnimatePresence>
@@ -142,7 +142,7 @@ export function AdultScreen({
       <main className="adult-gate">
         <button className="adult-gate-back" onClick={onBack}><ArrowLeft size={18} />返回普通区</button>
         <div className="adult-gate-mark"><ShieldCheck size={31} /></div>
-        <span>PRIVATE AREA</span>
+        <span>仅限成年人</span>
         <h1>进入18+专区</h1>
         <p>本专区仅面向已满18周岁的用户。点击“确认并进入”，即表示你确认已满18周岁并主动进入。</p>
         <button className="adult-confirm" onClick={confirm}>确认并进入 <ChevronRight size={17} /></button>
@@ -155,7 +155,7 @@ export function AdultScreen({
     <main className="adult-screen">
       <header className="adult-topbar">
         <button className="adult-icon-button" onClick={onBack} aria-label="返回首页"><ArrowLeft size={20} /></button>
-        <div className="adult-title"><img src="/assets/brand/logo-mark.svg" alt="" /><span><strong>18+专区</strong><small>PRIVATE SELECTION</small></span></div>
+        <div className="adult-title"><img src="/assets/brand/logo-mark.svg" alt="" /><span><strong>18+专区</strong><small>私密精选</small></span></div>
         <button className="adult-icon-button" onClick={onSearch} aria-label="搜索专区内容"><Search size={20} /></button>
       </header>
       <div className="adult-tabs" role="tablist" aria-label="专区频道">
@@ -167,21 +167,21 @@ export function AdultScreen({
         <>
           <AdultHero onOpen={onOpen} />
           <section className="adult-section">
-            <div className="adult-section-heading"><span><small>CURATED FOR YOU</small><h2>精选推荐</h2></span><button onClick={() => setTab('热门')}>更多 <ChevronRight size={15} /></button></div>
+            <div className="adult-section-heading"><span><small>为你精选</small><h2>精选推荐</h2></span><button onClick={() => setTab('热门')}>更多 <ChevronRight size={15} /></button></div>
             <AdultPosterGrid items={adultDramas.slice(0, 4)} saved={saved} onSave={toggleSave} onOpen={onOpen} />
           </section>
           <section className="adult-section">
-            <div className="adult-section-heading"><span><small>JUST UPDATED</small><h2>最近上新</h2></span><button onClick={() => setTab('最新')}>全部 <ChevronRight size={15} /></button></div>
+            <div className="adult-section-heading"><span><small>最近更新</small><h2>最近上新</h2></span><button onClick={() => setTab('最新')}>全部 <ChevronRight size={15} /></button></div>
             <AdultPosterGrid items={adultDramas.slice(4, 8)} saved={saved} onSave={toggleSave} onOpen={onOpen} />
           </section>
           <button className="adult-wishlist" onClick={() => setTab('热门')}>
-            <span><small>PRIVATE WISHLIST</small><strong>把心动，留到下一场。</strong><i>{saved.length ? `已收藏 ${saved.length} 部内容` : '私密收藏 · 仅本次会话保存'}</i></span>
+            <span><small>我的私密收藏</small><strong>把心动，留到下一场。</strong><i>{saved.length ? `已收藏 ${saved.length} 部内容` : '私密收藏 · 保存在此设备'}</i></span>
             <ChevronRight size={20} />
           </button>
         </>
       ) : (
         <section className="adult-section adult-filtered">
-          <div className="adult-section-heading"><span><small>PRIVATE SELECTION</small><h2>{tab}</h2></span><em>{visible.length} 部演示内容</em></div>
+          <div className="adult-section-heading"><span><small>私密精选</small><h2>{tab}</h2></span><em>{visible.length} 部内容</em></div>
           <AdultPosterGrid items={visible} saved={saved} onSave={toggleSave} onOpen={onOpen} />
         </section>
       )}

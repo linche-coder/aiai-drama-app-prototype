@@ -1,33 +1,36 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
-import { ArrowLeft, Crown, Heart, MonitorSmartphone, RotateCcw, UserRound } from 'lucide-react';
+import { MonitorSmartphone, RotateCcw, WifiOff } from 'lucide-react';
 import { AdultScreen } from './components/AdultScreen';
 import { BrandSplash } from './components/BrandSplash';
 import { BottomNav, type Page } from './components/BottomNav';
 import { HomeScreen } from './components/HomeScreen';
+import { DramaDetailScreen, FollowingScreen, MemberContent, ProfileScreen } from './components/ProductScreens';
 import { ReelsScreen } from './components/ReelsScreen';
-import { PreviewSheet, SearchSheet, Sheet } from './components/Sheets';
+import { SearchSheet, Sheet } from './components/Sheets';
 import { adultDramas } from './data/adult';
 import { dramas, type Channel, type Drama } from './data/dramas';
 
-function Placeholder({ page, onBack }: { page: Exclude<Page, 'home' | 'reels' | 'adult'>; onBack: () => void }) {
-  const map = {
-    following: { icon: Heart, eyebrow: '我的追剧', title: '还没有追剧记录', copy: '收藏与更新提醒会在正式业务接入后显示在这里。' },
-    me: { icon: UserRound, eyebrow: '个人中心', title: '我的页面筹备中', copy: '登录、会员、订单与设置不在本期原型范围内。' },
-  } as const;
-  const content = map[page];
-  const Icon = content.icon;
-  return <main className="placeholder-page"><button className="back-button" onClick={onBack}><ArrowLeft size={19} />返回首页</button><div className="placeholder-mark"><Icon size={34} /></div><span className="eyebrow">{content.eyebrow}</span><h1>{content.title}</h1><p>{content.copy}</p><button className="primary-button" onClick={onBack}>回到首页</button></main>;
+function readFollowing() {
+  try {
+    const saved = JSON.parse(sessionStorage.getItem('aiai-following') ?? '[]');
+    return Array.isArray(saved) && saved.length ? saved : ['drama-08'];
+  } catch { return ['drama-08']; }
 }
 
 export function App() {
   const [channel, setChannel] = useState<Channel>('推荐');
   const [page, setPage] = useState<Page>('home');
-  const [preview, setPreview] = useState<Drama | null>(null);
+  const [detail, setDetail] = useState<Drama | null>(null);
+  const [followingIds, setFollowingIds] = useState<string[]>(readFollowing);
   const [searchOpen, setSearchOpen] = useState(false);
   const [memberOpen, setMemberOpen] = useState(false);
   const [hasHistory, setHasHistory] = useState(true);
+  const [loggedIn, setLoggedIn] = useState(() => {
+    try { return sessionStorage.getItem('aiai-user-login') === '1'; } catch { return false; }
+  });
   const [previewWidth, setPreviewWidth] = useState(390);
   const [replayKey, setReplayKey] = useState(0);
+  const [online, setOnline] = useState(() => navigator.onLine);
   const [splash, setSplash] = useState(() => {
     try { return sessionStorage.getItem('aiai-app-intro-seen') !== '1'; }
     catch { return true; }
@@ -37,40 +40,60 @@ export function App() {
 
   const navigate = (next: Page) => {
     if (page === 'home') homeScroll.current = scroller.current?.scrollTop ?? 0;
+    setDetail(null);
     setPage(next);
     requestAnimationFrame(() => { if (scroller.current) scroller.current.scrollTop = next === 'home' ? homeScroll.current : 0; });
   };
   const replay = () => { setReplayKey((value) => value + 1); setSplash(true); };
   const finishSplash = useCallback(() => { try { sessionStorage.setItem('aiai-app-intro-seen', '1'); } catch { /* optional */ } setSplash(false); }, []);
+  const toggleFollowing = (id: string) => {
+    setFollowingIds((current) => {
+      const next = current.includes(id) ? current.filter((item) => item !== id) : [...current, id];
+      try { sessionStorage.setItem('aiai-following', JSON.stringify(next)); } catch { /* optional */ }
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    const updateNetwork = () => setOnline(navigator.onLine);
+    window.addEventListener('online', updateNetwork);
+    window.addEventListener('offline', updateNetwork);
+    return () => { window.removeEventListener('online', updateNetwork); window.removeEventListener('offline', updateNetwork); };
+  }, []);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
-      if (preview) setPreview(null);
+      if (detail) setDetail(null);
       else if (searchOpen) setSearchOpen(false);
       else if (memberOpen) setMemberOpen(false);
       else if (page !== 'home') navigate('home');
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [preview, searchOpen, memberOpen, page]);
+  }, [detail, searchOpen, memberOpen, page]);
 
-  return <div className="workspace" style={{ '--preview-width': `${previewWidth}px` } as CSSProperties}>
+  const followedItems = dramas.filter((item) => followingIds.includes(item.id));
+
+  return <div className="workspace" style={{ '--preview-width': previewWidth + 'px' } as CSSProperties}>
     <div className="app-frame">
       <div className="phone-surface">
-        <div ref={scroller} className={`app-scroller ${page === 'reels' ? 'reels-host' : ''}`}>
+        {!online && <div className="offline-banner"><WifiOff size={14} />网络连接不可用，正在显示已缓存内容</div>}
+        <div ref={scroller} className={'app-scroller ' + (page === 'reels' ? 'reels-host' : '')}>
           {page === 'home'
-            ? <HomeScreen channel={channel} setChannel={setChannel} hasHistory={hasHistory} onSearch={() => setSearchOpen(true)} onMember={() => setMemberOpen(true)} onOpen={setPreview} />
+            ? <HomeScreen channel={channel} setChannel={setChannel} hasHistory={hasHistory} onSearch={() => setSearchOpen(true)} onMember={() => setMemberOpen(true)} onOpen={setDetail} />
             : page === 'reels'
-              ? <ReelsScreen paused={!!preview || searchOpen || memberOpen} onSearch={() => setSearchOpen(true)} onOpen={setPreview} />
+              ? <ReelsScreen paused={!!detail || searchOpen || memberOpen} onSearch={() => setSearchOpen(true)} onOpen={setDetail} />
               : page === 'adult'
-                ? <AdultScreen onBack={() => navigate('home')} onSearch={() => setSearchOpen(true)} onOpen={setPreview} />
-                : <Placeholder page={page} onBack={() => navigate('home')} />}
+                ? <AdultScreen onBack={() => navigate('home')} onSearch={() => setSearchOpen(true)} onOpen={setDetail} />
+                : page === 'following'
+                  ? <FollowingScreen items={followedItems} onOpen={setDetail} onBrowse={() => navigate('home')} />
+                  : <ProfileScreen hasHistory={hasHistory} onMember={() => setMemberOpen(true)} loggedIn={loggedIn} onLogin={() => setLoggedIn(true)} />}
         </div>
         <BottomNav page={page} onChange={navigate} />
-        <SearchSheet open={searchOpen} items={page === 'adult' ? adultDramas : dramas} onClose={() => setSearchOpen(false)} onOpen={(item) => { setSearchOpen(false); setPreview(item); }} />
-        <PreviewSheet item={preview} onClose={() => setPreview(null)} />
-        <Sheet open={memberOpen} title="会员中心" onClose={() => setMemberOpen(false)}><div className="member-placeholder"><Crown size={30} /><h3>会员功能暂未接入</h3><p>本期仅确认入口位置和弹层样式，不提供购买、支付或权益开通流程。</p><button className="primary-button" onClick={() => setMemberOpen(false)}>我知道了</button></div></Sheet>
+        <SearchSheet open={searchOpen} items={page === 'adult' ? adultDramas : dramas} onClose={() => setSearchOpen(false)} onOpen={(item) => { setSearchOpen(false); setDetail(item); }} />
+        <Sheet open={memberOpen} title="会员中心" onClose={() => setMemberOpen(false)}><MemberContent loggedIn={loggedIn} onClose={() => setMemberOpen(false)} /></Sheet>
+        {detail && <DramaDetailScreen item={detail} following={followingIds.includes(detail.id)} onToggleFollowing={() => toggleFollowing(detail.id)} onBack={() => setDetail(null)} />}
         {splash && <BrandSplash replayKey={replayKey} onDone={finishSplash} />}
       </div>
     </div>

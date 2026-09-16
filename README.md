@@ -1,49 +1,54 @@
-# 爱爱短剧 APP 高保真交互原型
+# 爱爱短剧 APP 移动端高保真原型
 
-在现有代码上持续迭代的移动端原型。技术栈为 React 19 + TypeScript + Vite，Motion 负责转场与拖拽，Lucide React 提供统一图标。
+基于 React 19、TypeScript、Vite、Motion 和 Lucide React 构建。项目保留深黑紫背景、粉红—紫色品牌渐变、柔和环境光与克制玻璃质感，并已从单页展示扩展为可完整走查的移动端产品原型。
 
-## 启动
+## 启动与验证
 
-```powershell
-npm.cmd install
-npm.cmd run dev
-```
+- 开发：`npm install` 后运行 `npm run dev`，访问 `http://localhost:5173/`。
+- 构建：`npm run build`。
+- 预览：`npm run preview`。
+- 完整 Chrome 回归：`npm run verify`。
 
-开发地址以终端输出为准，默认 `http://localhost:5173`。生产构建：
+## 页面与流程
 
-```powershell
-npm.cmd run build
-npm.cmd run preview
-```
+- 品牌开屏：冷启动一次，约 1.55 秒显现、0.4 秒停留、360ms 整层淡出；支持减少动态效果与桌面重播。
+- 推荐：竖版 Cover Flow、继续观看、本周热榜、编辑精选、最新上架和猜你喜欢。
+- 短剧：题材快捷筛选、状态/地区/排序复合筛选、结果数量与双列高密度浏览。
+- 漫剧：独立精选头图、漫剧题材筛选、4:5 卡片和追更日历。
+- 剧目详情：剧情信息、播放、追剧、选集、加载失败与重试。
+- 刷剧：9:16 纵向吸附视频流、自动播放、暂停、点赞、收藏、评论、分享与进度。
+- 18+专区：年龄确认、频道、精选、上新、收藏与退出。
+- 追剧：追剧/收藏切换、更新提醒、继续观看和空状态。
+- 我的：游客/登录状态、手机号登录、观看记录、会员权益与设置入口。
+- 搜索：剧名/题材检索、有结果与无结果状态；离线时显示缓存内容提示。
 
-## 本期范围
+## 视觉规范
 
-- WEB 同源分层品牌开屏：约 1.55 秒显现、0.4 秒停留、360ms 整层淡出；同一会话仅播放一次，桌面演示面板可重播。
-- 首页搜索与会员、频道切换、竖版 Cover Flow、续看、热门趋势、最新上架与更多推荐。
-- 本地搜索（有结果 / 无结果）、剧目预览、会员占位弹层。
-- “刷剧”提供可上下吸附的视频流：自动播放、单击暂停、双击点赞、收藏、评论抽屉、分享反馈、进度拖动与会话状态保留。
-- 首页 / 刷剧 / 18+专区 / 追剧 / 我的五栏导航；18+、追剧与我的保持范围明确的占位页。
-- 桌面端提供独立演示控制：360 / 390 / 430 宽度和新用户 / 有记录切换。
+- 基准宽度 390px，验收覆盖 360 / 390 / 430px。
+- 页面边距 16px，小屏 14px。
+- 背景 `#08090D`，主文字 `#FBF9FF`，辅助文字 `#AAA3B4`。
+- 品牌渐变 `#FC486F → #EF35E5 → #9E38FF`。
+- 卡片圆角 15–18px，控件圆角 10–14px。
+- 底部导航 68px，并叠加 `env(safe-area-inset-bottom)`。
+- 图标统一使用 Lucide；18+入口未选中为单色，选中恢复品牌 SVG 渐变。
 
-本项目不含后端、真实登录、支付、会员购买、年龄验证或正式剧集视频。
+## 主要文件
 
-## 设计规范
+- `src/components/HomeScreen.tsx`：三频道差异化首页。
+- `src/components/ProductScreens.tsx`：详情、播放、追剧、个人中心、登录与会员。
+- `src/components/ReelsScreen.tsx`：沉浸式刷剧。
+- `src/components/AdultScreen.tsx`：18+专区。
+- `src/components/Sheets.tsx`：搜索、评论与通用底部抽屉。
+- `src/data/`：本地内容数据。
+- `src/styles/app.css`：设计令牌、组件和响应式样式。
+- `scripts/verify-product.mjs`：浏览器回归与截图。
 
-- 品牌色：`#FC2F68`、`#EE35EF`、`#9E24FF`，辅以少量 `#FE882B` 暖色光，均取自品牌 SVG。
-- 背景：`#08090D`；一级表面 `#111017`；正文 `#FBF9FF`；次级文字 `#AAA3B4`。
-- 字体：系统中文无衬线优先（苹方 / 微软雅黑），正文 14–16px，标题 18–26px。
-- 间距：4px 基础节奏，页面水平留白 16px；卡片圆角 14–24px。
-- 动效：普通反馈 180–220ms，页面/弹层 280–420ms，Cover Flow 弹簧拖拽；系统减少动态效果开启时，开屏改为约 220ms 简单淡入淡出。
+## 素材与范围
 
-## 素材与交接
+`public/assets/brand/` 保存品牌标识，`public/assets/covers/` 保存剧目封面，`public/assets/adult/` 保存专区素材，`public/media/demo/portrait.mp4` 用于验证播放交互。
 
-- `public/assets/brand/logo-full.svg`、`logo-mark.svg`：用户提供的原始 SVG，未重绘路径。
-- `src/assets/intro-logo.svg`：来自 WEB 端的可分层开屏 SVG；仅对 DOM `id` 做实例隔离，路径未修改。
-- `public/assets/covers/`：复用 `E:\工作\0912-爱爱短剧` 已整理的本地封面；原始来源目录为 `E:\工作\0907-短剧封面`。
-- `public/media/demo/portrait.mp4`：本地中性测试视频，仅用于验证播放、暂停、预加载和进度逻辑；界面以剧目封面作为主预览画面，正式交付前应替换为已授权的 9:16 剧集片段。
-- 剧名、集数、更新状态、简介和观看进度均为本地交互演示数据，不代表真实上架或热度。
-- 正式系统级启动画面需由 iOS / Android APP 工程师实现；本项目只演示应用内品牌动画。
+剧名、简介、集数、热度、评论、观看进度和用户状态均为本地模拟数据；登录、会员、支付、内容服务、评论发布与跨设备同步未连接真实后端。系统级启动画面需由 iOS / Android 工程师实现，本项目实现应用内品牌开屏。
 
-## 验收与截图
+## 截图
 
-运行 `node scripts/verify-prototype.mjs` 可执行本地 Chrome 回归。主要截图位于 `docs/screenshots/`：`01-splash-390.png`、`home-360.png`、`home-390.png`、`home-430.png`、`reels-390.png`、`adult-placeholder.png`、`search-result.png`、`search-empty.png`、`drama-preview.png` 与桌面演示控制截图。
+最终截图位于 `docs/screenshots/final/`，包括开屏、三种宽度首页、短剧筛选、漫剧、详情、刷剧、18+专区、追剧、个人中心、会员、搜索结果与空状态。
