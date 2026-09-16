@@ -293,10 +293,9 @@ main { display: block; }
 .splash-svg svg { width: 100%; height: auto; display: block; overflow: visible; }
 .splash .brand-icon { transform: translateX(360px); }
 .splash .brand-hearts, .splash .brand-dot { transform-box: fill-box; transform-origin: center; }
-.splash .brand-wordmark, .splash .intro-glow, .splash .brand-sheen, .splash-tagline { opacity: 0; }
-.splash-tagline { margin: 21px 0 0; color: #aaa2b0; text-align: center; font-size: 12px; letter-spacing: .22em; }
+.splash .brand-wordmark, .splash .intro-glow, .splash .brand-sheen { opacity: 0; }
 .splash-reduced .brand-icon { transform: none; }
-.splash-reduced .brand-hearts, .splash-reduced .brand-dot, .splash-reduced .brand-wordmark, .splash-reduced .splash-tagline { opacity: 1; }
+.splash-reduced .brand-hearts, .splash-reduced .brand-dot, .splash-reduced .brand-wordmark { opacity: 1; }
 
 /* Desktop-only prototype controls */
 .demo-controls { grid-column: 3; align-self: center; padding: 22px; border: 1px solid rgba(255,255,255,.11); border-radius: 22px; background: rgba(17,15,21,.86); box-shadow: 0 22px 60px rgba(0,0,0,.35); backdrop-filter: blur(20px); }

@@ -48,7 +48,6 @@ export function BrandSplash({ replayKey, onDone }: { replayKey: number; onDone: 
       animate(element.querySelector('.intro-glow'), [{ opacity: 0 }, { opacity: .16, offset: .2 }, { opacity: .32, offset: .45 }, { opacity: .14, offset: .75 }, { opacity: 0 }], 40, 1900, 'linear');
       animate(element.querySelector('.brand-sheen'), [{ opacity: 0 }, { opacity: .48, offset: .42 }, { opacity: .2, offset: .7 }, { opacity: 0 }], 160, 1770, 'ease-in-out');
       animate(element.querySelector('.brand-light'), [{ transform: 'translate(-130px,35px) rotate(-18deg)' }, { transform: 'translate(360px,-25px) rotate(-18deg)' }], 160, 1770, 'cubic-bezier(.35,0,.25,1)');
-      animate(element.querySelector('.splash-tagline'), [{ opacity: 0, transform: 'translateY(7px)' }, { opacity: 1, transform: 'none' }], 1010, 360);
       master = animate(element, [{ opacity: 1 }, { opacity: 0 }], REVEAL + HOLD, FADE, 'cubic-bezier(.4,0,.2,1)');
     }
     master?.finished.then(finish, finish);
@@ -64,6 +63,6 @@ export function BrandSplash({ replayKey, onDone }: { replayKey: number; onDone: 
 
   return <div key={replayKey} ref={root} className={`splash ${reduced ? 'splash-reduced' : ''}`} aria-label="爱爱短剧品牌开屏">
     <div className="splash-curtain" />
-    <div className="splash-brand"><div className="splash-svg" dangerouslySetInnerHTML={{ __html: markup }} /><p className="splash-tagline">好故事，一眼入戏</p></div>
+    <div className="splash-brand"><div className="splash-svg" dangerouslySetInnerHTML={{ __html: markup }} /></div>
   </div>;
 }
