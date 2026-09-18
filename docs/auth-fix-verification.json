@@ -1,0 +1,32 @@
+{
+  "ok": true,
+  "results": [
+    {
+      "width": 360,
+      "backgroundMovement": [
+        0,
+        0,
+        0
+      ],
+      "frames": 121
+    },
+    {
+      "width": 390,
+      "backgroundMovement": [
+        0,
+        0,
+        0
+      ],
+      "frames": 121
+    },
+    {
+      "width": 430,
+      "backgroundMovement": [
+        0,
+        0,
+        0
+      ],
+      "frames": 119
+    }
+  ]
+}
