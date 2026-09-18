@@ -1,38 +1,26 @@
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { Clock3, Film, Play, Search, X } from 'lucide-react';
+import { Play, Search, X } from 'lucide-react';
 import type { Drama } from '../data/dramas';
-
-export function Sheet({ open, title, onClose, children }: { open: boolean; title: string; onClose: () => void; children: React.ReactNode }) {
-  return <AnimatePresence>{open && <motion.div className="sheet-layer" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose}>
-    <div className="sheet-scrim" aria-hidden="true" />
-    <motion.section className="sheet" role="dialog" aria-modal="true" aria-label={title} initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'spring', damping: 30, stiffness: 320 }} onClick={(event) => event.stopPropagation()}>
-      <div className="sheet-grabber" />
-      <header><h2>{title}</h2><button className="icon-button" onClick={onClose} aria-label="关闭"><X /></button></header>
-      {children}
-    </motion.section>
-  </motion.div>}</AnimatePresence>;
+import { useReducedMotion } from '../hooks/useReducedMotion';
+export function Sheet({ open, title, onClose, children }: { open: boolean; title: string; onClose: () => void; children: ReactNode }) {
+  const reduced = useReducedMotion();
+  const dialog = useRef<HTMLElement>(null), close = useRef(onClose); close.current = onClose;
+  useEffect(() => {
+    if (!open) return;
+    const previous = document.activeElement as HTMLElement | null;
+    const timer = window.setTimeout(() => { const el = dialog.current; (el?.querySelector<HTMLElement>('[autofocus], input, textarea, button') ?? el)?.focus(); }, 60);
+    const key = (event: KeyboardEvent) => {
+      const dialogs = document.querySelectorAll('[aria-modal="true"]'); if (dialogs[dialogs.length - 1] !== dialog.current) return;
+      if (event.key === 'Escape') { event.preventDefault(); event.stopImmediatePropagation(); close.current(); }
+      if (event.key === 'Tab') { const nodes = [...(dialog.current?.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), textarea:not(:disabled), select:not(:disabled), a[href], [tabindex="0"]') ?? [])].filter(n => n.getClientRects().length); const first = nodes[0], last = nodes[nodes.length - 1]; if (!first) { event.preventDefault(); dialog.current?.focus(); } else if (event.shiftKey && (document.activeElement === first || !dialog.current?.contains(document.activeElement))) { event.preventDefault(); last.focus(); } else if (!event.shiftKey && (document.activeElement === last || !dialog.current?.contains(document.activeElement))) { event.preventDefault(); first.focus(); } }
+    };
+    window.addEventListener('keydown', key, true);
+    return () => { clearTimeout(timer); window.removeEventListener('keydown', key, true); if (previous?.isConnected) previous.focus(); };
+  }, [open]);
+  return <AnimatePresence>{open && <motion.div className="sheet-layer" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose}><div className="sheet-scrim" aria-hidden="true"/><motion.section ref={dialog} tabIndex={-1} className="sheet" role="dialog" aria-modal="true" aria-label={title} initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={reduced ? { duration: 0 } : { type: 'spring', damping: 30, stiffness: 320 }} onClick={e => e.stopPropagation()}><div className="sheet-grabber"/><header><h2>{title}</h2><button className="icon-button" onClick={onClose} aria-label="关闭"><X/></button></header>{children}</motion.section></motion.div>}</AnimatePresence>;
 }
-
-export function SearchSheet({ open, items, onClose, onOpen }: { open: boolean; items: Drama[]; onClose: () => void; onOpen: (item: Drama) => void }) {
-  const [query, setQuery] = React.useState('');
-  const results = query.trim() ? items.filter((item) => `${item.title}${item.genre}`.toLowerCase().includes(query.trim().toLowerCase())) : items.slice(0, 4);
-  return <Sheet open={open} title="搜一部好剧" onClose={onClose}>
-    <label className="search-field"><Search size={18} /><input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} placeholder="搜索剧名或题材" /><button onClick={() => setQuery('')}>{query ? '清除' : '搜索'}</button></label>
-    <p className="search-note">{query ? `找到 ${results.length} 部相关内容` : '大家都在搜'}</p>
-    <div className="search-results">
-      {results.map((item) => <button key={item.id} onClick={() => onOpen(item)}><img src={item.cover} alt="" /><span><strong>{item.title}</strong><small>{item.genre} · {item.status}</small></span><Play size={17} /></button>)}
-      {!results.length && <div className="empty"><Search /><strong>没有找到相关剧目</strong><span>换个关键词试试，比如“月色”或“古装”。</span></div>}
-    </div>
-  </Sheet>;
+export function SearchSheet({ open, items, onClose, onOpen }: { open: boolean; items: Drama[]; onClose: () => void; onOpen: (d: Drama) => void }) {
+  const [query, setQuery] = useState(''), results = query.trim() ? items.filter(d => (d.title + d.genre).toLowerCase().includes(query.trim().toLowerCase())) : items.slice(0, 4);
+  return <Sheet open={open} title="搜一部好剧" onClose={onClose}><label className="search-field"><Search size={18}/><input autoFocus value={query} onChange={e => setQuery(e.target.value)} placeholder="搜索剧名或题材"/><button onClick={() => setQuery('')}>{query ? '清除' : '搜索'}</button></label><p className="search-note">{query ? '找到 ' + results.length + ' 部相关内容' : '大家都在搜'}</p><div className="search-results">{results.map(d => <button key={d.id} onClick={() => onOpen(d)}><img src={d.cover} alt=""/><span><strong>{d.title}</strong><small>{d.genre} · {d.status}</small></span><Play size={17}/></button>)}{!results.length && <div className="empty"><Search/><strong>没有找到相关剧目</strong><span>换个关键词试试，比如“月色”或“古装”。</span></div>}</div></Sheet>;
 }
-
-export function PreviewSheet({ item, onClose }: { item: Drama | null; onClose: () => void }) {
-  return <Sheet open={!!item} title="剧目预览" onClose={onClose}>{item && <div className="preview-content">
-    <img className="preview-poster" src={item.cover} alt={item.title} />
-    <div className="preview-copy"><span className="genre-pill">{item.genre}</span><h3>{item.title}</h3><p>{item.synopsis}</p><span className="preview-status"><Clock3 size={14} />{item.status}</span></div>
-    <button className="primary-button"><Play size={18} fill="currentColor" />开始播放</button>
-    <p className="scope-note"><Film size={15} />播放内容将在正式服务接入后提供。</p>
-  </div>}</Sheet>;
-}
-
-import React from 'react';

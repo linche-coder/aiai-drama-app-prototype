@@ -4,107 +4,69 @@ import { AdultScreen } from './components/AdultScreen';
 import { BrandSplash } from './components/BrandSplash';
 import { BottomNav, type Page } from './components/BottomNav';
 import { HomeScreen } from './components/HomeScreen';
-import { DramaDetailScreen, FollowingScreen, MemberContent, ProfileScreen } from './components/ProductScreens';
+import { ProfileScreen, LibraryScreen, AccountPage } from './components/AccountScreens';
+import { DramaDetailScreen, PlayerScreen, episodeCount } from './components/DramaScreens';
+import { MembershipPage, CommercePage, SupportPage, PolicyPage, CatalogPage } from './components/MoreScreens';
+import { AuthSheet } from './components/AuthSheet';
+import { AuthLinkPage } from './components/AuthLinkPage';
 import { ReelsScreen } from './components/ReelsScreen';
-import { SearchSheet, Sheet } from './components/Sheets';
+import { SearchSheet } from './components/Sheets';
+import { Empty, PageShell } from './components/Common';
 import { adultDramas } from './data/adult';
 import { dramas, type Channel, type Drama } from './data/dramas';
-
-function readFollowing() {
-  try {
-    const saved = JSON.parse(sessionStorage.getItem('aiai-following') ?? '[]');
-    return Array.isArray(saved) && saved.length ? saved : ['drama-08'];
-  } catch { return ['drama-08']; }
-}
-
+import { AppState, useApp, useRoute } from './state/appState';
 export function App() {
-  const [channel, setChannel] = useState<Channel>('推荐');
-  const [page, setPage] = useState<Page>('home');
-  const [detail, setDetail] = useState<Drama | null>(null);
-  const [followingIds, setFollowingIds] = useState<string[]>(readFollowing);
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [memberOpen, setMemberOpen] = useState(false);
-  const [hasHistory, setHasHistory] = useState(true);
-  const [loggedIn, setLoggedIn] = useState(() => {
-    try { return sessionStorage.getItem('aiai-user-login') === '1'; } catch { return false; }
-  });
-  const [previewWidth, setPreviewWidth] = useState(390);
-  const [replayKey, setReplayKey] = useState(0);
-  const [online, setOnline] = useState(() => navigator.onLine);
-  const [splash, setSplash] = useState(() => {
-    try { return sessionStorage.getItem('aiai-app-intro-seen') !== '1'; }
-    catch { return true; }
-  });
-  const scroller = useRef<HTMLDivElement>(null);
-  const homeScroll = useRef(0);
-
-  const navigate = (next: Page) => {
-    if (page === 'home') homeScroll.current = scroller.current?.scrollTop ?? 0;
-    setDetail(null);
-    setPage(next);
-    requestAnimationFrame(() => { if (scroller.current) scroller.current.scrollTop = next === 'home' ? homeScroll.current : 0; });
-  };
-  const replay = () => { setReplayKey((value) => value + 1); setSplash(true); };
-  const finishSplash = useCallback(() => { try { sessionStorage.setItem('aiai-app-intro-seen', '1'); } catch { /* optional */ } setSplash(false); }, []);
-  const toggleFollowing = (id: string) => {
-    setFollowingIds((current) => {
-      const next = current.includes(id) ? current.filter((item) => item !== id) : [...current, id];
-      try { sessionStorage.setItem('aiai-following', JSON.stringify(next)); } catch { /* optional */ }
-      return next;
-    });
-  };
-
-  useEffect(() => {
-    const updateNetwork = () => setOnline(navigator.onLine);
-    window.addEventListener('online', updateNetwork);
-    window.addEventListener('offline', updateNetwork);
-    return () => { window.removeEventListener('online', updateNetwork); window.removeEventListener('offline', updateNetwork); };
-  }, []);
-
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return;
-      if (detail) setDetail(null);
-      else if (searchOpen) setSearchOpen(false);
-      else if (memberOpen) setMemberOpen(false);
-      else if (page !== 'home') navigate('home');
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [detail, searchOpen, memberOpen, page]);
-
-  const followedItems = dramas.filter((item) => followingIds.includes(item.id));
-
-  return <div className="workspace" style={{ '--preview-width': previewWidth + 'px' } as CSSProperties}>
-    <div className="app-frame">
-      <div className="phone-surface">
-        {!online && <div className="offline-banner"><WifiOff size={14} />网络连接不可用，正在显示已缓存内容</div>}
-        <div ref={scroller} className={'app-scroller ' + (page === 'reels' ? 'reels-host' : '')}>
-          {page === 'home'
-            ? <HomeScreen channel={channel} setChannel={setChannel} hasHistory={hasHistory} onSearch={() => setSearchOpen(true)} onMember={() => setMemberOpen(true)} onOpen={setDetail} />
-            : page === 'reels'
-              ? <ReelsScreen paused={!!detail || searchOpen || memberOpen} onSearch={() => setSearchOpen(true)} onOpen={setDetail} />
-              : page === 'adult'
-                ? <AdultScreen onBack={() => navigate('home')} onSearch={() => setSearchOpen(true)} onOpen={setDetail} />
-                : page === 'following'
-                  ? <FollowingScreen items={followedItems} onOpen={setDetail} onBrowse={() => navigate('home')} />
-                  : <ProfileScreen hasHistory={hasHistory} onMember={() => setMemberOpen(true)} loggedIn={loggedIn} onLogin={() => setLoggedIn(true)} />}
-        </div>
-        <BottomNav page={page} onChange={navigate} />
-        <SearchSheet open={searchOpen} items={page === 'adult' ? adultDramas : dramas} onClose={() => setSearchOpen(false)} onOpen={(item) => { setSearchOpen(false); setDetail(item); }} />
-        <Sheet open={memberOpen} title="会员中心" onClose={() => setMemberOpen(false)}><MemberContent loggedIn={loggedIn} onClose={() => setMemberOpen(false)} /></Sheet>
-        {detail && <DramaDetailScreen item={detail} following={followingIds.includes(detail.id)} onToggleFollowing={() => toggleFollowing(detail.id)} onBack={() => setDetail(null)} />}
-        {splash && <BrandSplash replayKey={replayKey} onDone={finishSplash} />}
-      </div>
-    </div>
-    <aside className="demo-controls" aria-label="原型演示控制">
-      <span className="demo-label"><MonitorSmartphone size={15} />PROTOTYPE TOOLS</span>
-      <h2>演示控制</h2>
-      <p>这些控制不属于 APP 产品界面。</p>
-      <button className="replay-button" onClick={replay}><RotateCcw size={17} />重播品牌开屏</button>
-      <div className="control-group"><span>首页状态</span><div className="segmented"><button data-active={hasHistory} onClick={() => setHasHistory(true)}>有记录</button><button data-active={!hasHistory} onClick={() => setHasHistory(false)}>新用户</button></div></div>
-      <div className="control-group"><span>预览宽度</span><div className="segmented sizes">{[360, 390, 430].map((width) => <button key={width} data-active={previewWidth === width} onClick={() => setPreviewWidth(width)}>{width}</button>)}</div></div>
-      <div className="demo-state"><i />当前：{channel}频道 · {hasHistory ? '有观看记录' : '新用户'}</div>
-    </aside>
-  </div>;
+  const [auth, setAuth] = useState(false);
+  return <AppState login={() => setAuth(true)}><AppContent auth={auth} setAuth={setAuth}/></AppState>;
 }
+function AppContent({ auth, setAuth }: { auth: boolean; setAuth: (v: boolean) => void }) {
+  const { records } = useApp(), { route, navigate } = useRoute();
+  const [authMode, setAuthMode] = useState<'login' | 'register' | 'forgot'>('login'), [channel, setChannel] = useState<Channel>('推荐'), [basePage, setBasePage] = useState<Page>('home'), [search, setSearch] = useState(false), [searchAdult, setSearchAdult] = useState(false), [width, setWidth] = useState(390), [replayKey, setReplayKey] = useState(0), [online, setOnline] = useState(navigator.onLine);
+  const [splash, setSplash] = useState(() => { try { return sessionStorage.getItem('aiai-app-intro-seen') !== '1'; } catch { return true; } });
+  const scroller = useRef<HTMLDivElement>(null);
+  const finishSplash = useCallback(() => { try { sessionStorage.setItem('aiai-app-intro-seen', '1'); } catch {} setSplash(false); }, []);
+  const path = route.split('?')[0], params = new URLSearchParams(route.split('?')[1] || ''), match = path.match(/^\/(detail|play)\/([^/]+)$/);
+  let id = ''; try { id = match ? decodeURIComponent(match[2]) : ''; } catch {}
+  const detail = match ? [...dramas, ...adultDramas].find(d => d.id === id) : undefined;
+  const isAdult = !!detail && adultDramas.some(d => d.id === detail.id);
+  const adultConfirmed = (() => { try { return sessionStorage.getItem('aiai-adult-confirmed') === '1'; } catch { return false; } })();
+  const pageMap: Record<string, Page> = { '/': 'home', '/reels': 'reels', '/18plus': 'adult', '/following': 'following', '/me': 'me' };
+  const mainPage = pageMap[path];
+  const navMap: Record<Page, string> = { home: '/', reels: '/reels', adult: '/18plus', following: '/following', me: '/me' };
+  const open = (d: Drama) => { setSearch(false); navigate('/detail/' + encodeURIComponent(d.id)); };
+  const back = () => { if (history.state?.aiaiApp) history.back(); else navigate(match?.[1] === 'play' && detail ? '/detail/' + encodeURIComponent(detail.id) : navMap[basePage], true); };
+  const nav = (to: string) => { if (to.startsWith('/account/')) { setAuthMode(to.includes('forgot') ? 'forgot' : to.includes('register') ? 'register' : 'login'); setAuth(true); return; } navigate(to); };
+  useEffect(() => { if (mainPage) setBasePage(mainPage); }, [mainPage]);
+  useEffect(() => { if (scroller.current) scroller.current.scrollTop = 0; }, [basePage]);
+  useEffect(() => { if (['/account/login', '/account/register', '/account/forgot-password', '/account/session-expired'].includes(path)) { setAuthMode(path.includes('forgot') ? 'forgot' : path.includes('register') ? 'register' : 'login'); setAuth(true); } }, [path]);
+  useEffect(() => { document.title = detail ? detail.title + ' · 爱爱短剧' : '爱爱短剧 · 好故事，一眼入戏'; }, [detail]);
+  useEffect(() => { const update = () => setOnline(navigator.onLine); window.addEventListener('online', update); window.addEventListener('offline', update); return () => { window.removeEventListener('online', update); window.removeEventListener('offline', update); }; }, []);
+  useEffect(() => { const key = (e: KeyboardEvent) => { if (e.key !== 'Escape' || document.querySelector('[aria-modal="true"]')) return; if (path !== '/') back(); }; window.addEventListener('keydown', key); return () => window.removeEventListener('keydown', key); }, [path]);
+  const isPlayer = match?.[1] === 'play' && !!detail && (!isAdult || adultConfirmed);
+  const common = { route, navigate: nav, onBack: back, onOpen: open };
+  const ep = detail ? Math.max(1, Math.min(episodeCount(detail), Math.floor(Number(params.get('episode'))) || 1)) : 1;
+  let overlay: React.ReactNode = null;
+  if (match) overlay = !detail ? <PageShell title="剧目不存在" onBack={back}><Empty title="没有找到这部剧"><button className="primary-button" onClick={() => navigate('/')}>返回首页</button></Empty></PageShell> : isAdult && !adultConfirmed ? <PageShell title="访问确认" onBack={back}><Empty title="请先完成专区访问确认"><button className="primary-button" onClick={() => navigate('/18plus')}>前往专区</button></Empty></PageShell> : isPlayer ? <PlayerScreen key={detail.id} item={detail} episode={ep} onBack={back} onEpisode={n => navigate('/play/' + encId(detail.id) + '?episode=' + n, true)} onMember={() => navigate('/membership')}/> : <DramaDetailScreen key={detail.id} item={detail} onBack={back} onOpen={open} onPlay={n => navigate('/play/' + encId(detail.id) + '?episode=' + n)}/>;
+  else if (path === '/account/reset-password' || path === '/account/verify') overlay = <AuthLinkPage key={route} route={route} onBack={back} onLogin={() => { setAuthMode('login'); setAuth(true); }}/>;
+  else if (path.startsWith('/account/')) overlay = null;
+  else if (path === '/membership') overlay = <MembershipPage {...common}/>;
+  else if (path === '/checkout' || path === '/payment-result' || path.startsWith('/me/orders')) overlay = <CommercePage key={route} {...common}/>;
+  else if (path.startsWith('/me/') || path === '/settings') overlay = <AccountPage key={path} kind={path === '/settings' ? 'settings' : path.slice(4)} {...common}/>;
+  else if (path.startsWith('/support')) overlay = <SupportPage key={path} {...common}/>;
+  else if (['/about', '/terms', '/privacy', '/copyright', '/membership-guide'].includes(path)) overlay = <PolicyPage {...common}/>;
+  else if (['/rankings', '/shorts', '/comics', '/collections', '/free', '/updates'].some(p => path === p || path.startsWith(p + '/'))) overlay = <CatalogPage key={path} {...common}/>;
+  else if (!mainPage) overlay = <PageShell title="页面不存在" onBack={back}><Empty title="这个页面暂不可用"><button className="primary-button" onClick={() => navigate('/')}>返回首页</button></Empty></PageShell>;
+  const active = mainPage || basePage;
+  return <div className="workspace" style={{ '--preview-width': width + 'px' } as CSSProperties}><div className="app-frame"><div className="phone-surface">
+    {!online && <div className="offline-banner"><WifiOff size={14}/>网络不可用，请检查连接后重试</div>}
+    <div ref={scroller} inert={!!overlay || search || auth} aria-hidden={!!overlay || undefined} className={'app-scroller ' + (active === 'reels' ? 'reels-host' : '')}>
+      {active === 'home' ? <HomeScreen channel={channel} setChannel={setChannel} hasHistory={records.history.some(p => dramas.some(d => d.id === p.contentId))} onSearch={() => { setSearchAdult(false); setSearch(true); }} onMember={() => navigate('/membership')} onOpen={open}/> : active === 'reels' ? <ReelsScreen paused={!!overlay || auth || search} onSearch={() => { setSearchAdult(false); setSearch(true); }} onOpen={open}/> : active === 'adult' ? <AdultScreen onBack={() => navigate('/')} onSearch={() => { setSearchAdult(true); setSearch(true); }} onOpen={open}/> : active === 'following' ? <LibraryScreen onOpen={open} navigate={nav}/> : <ProfileScreen navigate={nav} onOpen={open}/>}
+    </div>
+    <div className="route-layer" inert={auth || search}>{overlay}</div>
+    {!isPlayer && <BottomNav page={path === '/membership' || path === '/membership-guide' || path === '/checkout' || path === '/payment-result' || path.startsWith('/me/') ? 'me' : active} onChange={p => { setSearch(false); navigate(navMap[p]); }}/>}
+    <SearchSheet open={search} items={searchAdult ? adultDramas : dramas} onClose={() => setSearch(false)} onOpen={open}/>
+    <AuthSheet initialMode={authMode} open={auth} onClose={() => { setAuth(false); if (['/account/login', '/account/register', '/account/forgot-password', '/account/session-expired'].includes(path)) { const target = params.get('returnTo') || '/'; navigate(target.startsWith('/') && !target.startsWith('//') && !target.startsWith('/account/') ? target : '/', true); } }} onPolicy={kind => { setAuth(false); navigate('/' + kind); }}/>
+    {splash && <BrandSplash replayKey={replayKey} onDone={finishSplash}/>}
+  </div></div><aside className="demo-controls" aria-label="预览控制"><span className="demo-label"><MonitorSmartphone size={15}/>MOBILE PREVIEW</span><h2>爱爱短剧 APP</h2><p>移动端页面与交互预览</p><button className="replay-button" onClick={() => { setReplayKey(v => v + 1); setSplash(true); }}><RotateCcw size={17}/>重播品牌开屏</button><div className="control-group"><span>预览宽度</span><div className="segmented sizes">{[360, 390, 430].map(w => <button key={w} data-active={width === w} onClick={() => setWidth(w)}>{w}</button>)}</div></div></aside></div>;
+}
+const encId = encodeURIComponent;

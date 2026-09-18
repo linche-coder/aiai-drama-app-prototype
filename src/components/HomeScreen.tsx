@@ -3,9 +3,11 @@ import { ArrowRight, Crown, Filter, Flame, Play, Search, SlidersHorizontal, Spar
 import { AnimatePresence, motion } from 'motion/react';
 import { channelContent, type Channel, type Drama, type Genre } from '../data/dramas';
 import { HeroCarousel } from './HeroCarousel';
+import { useApp } from '../state/appState';
+const go = (path: string) => { history.pushState({ aiaiApp: true }, '', '#' + path); window.dispatchEvent(new Event('hashchange')); };
 
 function SectionTitle({ title, action = '更多' }: { title: string; action?: string }) {
-  return <div className="section-heading"><h2>{title}</h2><button className="text-button">{action} <ArrowRight size={15} /></button></div>;
+  return <div className="section-heading"><h2>{title}</h2><button className="text-button" onClick={() => go(title === '继续观看' ? '/me/history' : title === '本周热榜' ? '/rankings' : title === '追更日历' ? '/updates' : '/shorts')}>{action} <ArrowRight size={15} /></button></div>;
 }
 
 function PosterRail({ items, onOpen, ranked = false }: { items: Drama[]; onOpen: (item: Drama) => void; ranked?: boolean }) {
@@ -25,18 +27,21 @@ function DramaGrid({ items, onOpen, manga = false }: { items: Drama[]; onOpen: (
 }
 
 function ContinueWatching({ item, onOpen }: { item: Drama; onOpen: (item: Drama) => void }) {
+  const { records } = useApp(); const progress = records.history.find(p => p.contentId === item.id);
   return <section className="section continue-section">
     <SectionTitle title="继续观看" action="观看记录" />
-    <button className="continue-card" onClick={() => onOpen(item)}><img src={item.cover} alt="" /><span className="continue-info"><strong>{item.title}</strong><small>上次看到第 12 集</small><span className="progress"><i /></span></span><span className="continue-play"><Play size={16} fill="currentColor" /></span></button>
+    <button className="continue-card" onClick={() => onOpen(item)}><img src={item.cover} alt="" /><span className="continue-info"><strong>{item.title}</strong><small>上次看到第 {progress?.episodeId ?? 1} 集</small><span className="progress"><i style={{ width: (progress?.duration ? Math.min(100, progress.seconds / progress.duration * 100) : 0) + '%' }} /></span></span><span className="continue-play"><Play size={16} fill="currentColor" /></span></button>
   </section>;
 }
 
 function RecommendPage({ items, hasHistory, onOpen }: { items: Drama[]; hasHistory: boolean; onOpen: (item: Drama) => void }) {
+  const { records } = useApp(); const recent = items.find(d => d.id === records.history[0]?.contentId);
   return <>
     <HeroCarousel items={items.slice(0, 5)} onOpen={onOpen} />
-    {hasHistory && <ContinueWatching item={items[1]} onOpen={onOpen} />}
+    <nav className="discovery-links" aria-label="发现更多">{[['排行榜', '/rankings'], ['精选专题', '/collections'], ['免费专区', '/free'], ['追更日历', '/updates']].map(([label, path]) => <button key={path} onClick={() => go(path)}>{label}<ArrowRight size={12}/></button>)}</nav>
+    {hasHistory && recent && <ContinueWatching item={recent} onOpen={onOpen} />}
     <section className="section rail-section"><SectionTitle title="本周热榜" action="完整榜单" /><PosterRail items={items.slice(0, 7)} onOpen={onOpen} ranked /></section>
-    <button className="topic-banner" onClick={() => onOpen(items[4])}>
+    <button className="topic-banner" onClick={() => go('/collections')}>
       <span><small><Sparkles size={13} /> 编辑精选</small><strong>入夜后的心动故事</strong><i>6 部高口碑都市与古装佳作</i></span>
       <img src={items[4].cover} alt="" />
     </button>
@@ -65,7 +70,7 @@ function ShortDramaPage({ items, onOpen }: { items: Drama[]; onOpen: (item: Dram
   const activeCount = [genre, completion, region].filter((value) => value !== '全部').length;
   const visible = useMemo(() => {
     const result = items.filter((item) => (genre === '全部' || item.genre === genre) && (completion === '全部' || item.completion === completion) && (region === '全部' || item.region === region));
-    return sort === '最近更新' ? [...result].reverse() : result;
+    return sort === '最近更新' ? [...result].reverse() : [...result].sort((a,b) => parseFloat(b.heat ?? '0') - parseFloat(a.heat ?? '0'));
   }, [items, genre, completion, region, sort]);
   const clear = () => { setGenre('全部'); setCompletion('全部'); setRegion('全部'); setSort('热度优先'); };
 

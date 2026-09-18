@@ -3,6 +3,7 @@ import { ArrowLeft, ChevronRight, Heart, Play, Search, ShieldCheck } from 'lucid
 import { AnimatePresence, motion } from 'motion/react';
 import { adultBanners, adultDramas, type AdultDrama, type AdultTab } from '../data/adult';
 import { useReducedMotion } from '../hooks/useReducedMotion';
+import { useApp } from '../state/appState';
 
 function AdultPosterGrid({
   items,
@@ -102,23 +103,23 @@ export function AdultScreen({
   onSearch: () => void;
   onOpen: (item: AdultDrama) => void;
 }) {
+  const { records, toggle } = useApp();
   const [confirmed, setConfirmed] = useState(() => {
     try { return sessionStorage.getItem('aiai-adult-confirmed') === '1'; }
     catch { return false; }
   });
   const [tab, setTab] = useState<AdultTab>('首页');
-  const [saved, setSaved] = useState<string[]>(() => {
-    try { return JSON.parse(sessionStorage.getItem('aiai-adult-saved') ?? '[]'); }
-    catch { return []; }
-  });
+  const [wishlist, setWishlist] = useState(false);
+  const saved = records.saved.filter(id => adultDramas.some(d => d.id === id));
 
   const visible = useMemo(() => {
+    if (wishlist) return adultDramas.filter(item => saved.includes(item.id));
     if (tab === '成人短剧') return adultDramas.filter((item) => item.channel === '短剧');
     if (tab === '成人漫剧') return adultDramas.filter((item) => item.channel === '漫剧');
     if (tab === '原创') return adultDramas.filter((item) => item.original);
     if (tab === '最新') return [...adultDramas].reverse();
     return adultDramas;
-  }, [tab]);
+  }, [tab, wishlist, saved]);
 
   const confirm = () => {
     try { sessionStorage.setItem('aiai-adult-confirmed', '1'); } catch { /* session persistence is optional */ }
@@ -128,14 +129,9 @@ export function AdultScreen({
     try { sessionStorage.removeItem('aiai-adult-confirmed'); } catch { /* session persistence is optional */ }
     setConfirmed(false);
     setTab('首页');
+    setWishlist(false);
   };
-  const toggleSave = (id: string) => {
-    setSaved((current) => {
-      const next = current.includes(id) ? current.filter((item) => item !== id) : [...current, id];
-      try { sessionStorage.setItem('aiai-adult-saved', JSON.stringify(next)); } catch { /* session persistence is optional */ }
-      return next;
-    });
-  };
+  const toggleSave = (id: string) => toggle('saved', id);
 
   if (!confirmed) {
     return (
@@ -160,10 +156,10 @@ export function AdultScreen({
       </header>
       <div className="adult-tabs" role="tablist" aria-label="专区频道">
         {(['首页', '成人短剧', '成人漫剧', '原创', '最新', '热门'] as AdultTab[]).map((name) => (
-          <button role="tab" aria-selected={tab === name} key={name} onClick={() => setTab(name)}>{name}</button>
+          <button role="tab" aria-selected={tab === name} key={name} onClick={() => { setWishlist(false); setTab(name); }}>{name}</button>
         ))}
       </div>
-      {tab === '首页' ? (
+      {tab === '首页' && !wishlist ? (
         <>
           <AdultHero onOpen={onOpen} />
           <section className="adult-section">
@@ -174,14 +170,14 @@ export function AdultScreen({
             <div className="adult-section-heading"><span><small>最近更新</small><h2>最近上新</h2></span><button onClick={() => setTab('最新')}>全部 <ChevronRight size={15} /></button></div>
             <AdultPosterGrid items={adultDramas.slice(4, 8)} saved={saved} onSave={toggleSave} onOpen={onOpen} />
           </section>
-          <button className="adult-wishlist" onClick={() => setTab('热门')}>
+          <button className="adult-wishlist" onClick={() => setWishlist(true)}>
             <span><small>我的私密收藏</small><strong>把心动，留到下一场。</strong><i>{saved.length ? `已收藏 ${saved.length} 部内容` : '私密收藏 · 保存在此设备'}</i></span>
             <ChevronRight size={20} />
           </button>
         </>
       ) : (
         <section className="adult-section adult-filtered">
-          <div className="adult-section-heading"><span><small>私密精选</small><h2>{tab}</h2></span><em>{visible.length} 部内容</em></div>
+          <div className="adult-section-heading"><span><small>私密精选</small><h2>{wishlist ? '我的私密收藏' : tab}</h2></span><em>{visible.length} 部内容</em></div>
           <AdultPosterGrid items={visible} saved={saved} onSave={toggleSave} onOpen={onOpen} />
         </section>
       )}
