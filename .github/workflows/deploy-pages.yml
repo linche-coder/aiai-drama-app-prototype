@@ -41,6 +41,19 @@ jobs:
       - run: npm run build
         env:
           AIAI_BASE: /${{ github.event.repository.name }}/
+      - name: Enable GitHub Pages when needed
+        uses: actions/github-script@v7
+        with:
+          script: |
+            try {
+              await github.request('POST /repos/{owner}/{repo}/pages', {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                build_type: 'workflow'
+              })
+            } catch (error) {
+              if (![409, 422].includes(error.status)) throw error
+            }
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
