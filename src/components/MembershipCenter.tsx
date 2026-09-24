@@ -1,43 +1,35 @@
-import { useEffect, useState } from 'react';
-import { ArrowRight, Check, ChevronRight, Crown, Gem, Coins } from 'lucide-react';
+import { useState } from 'react';
+import { ArrowRight, CalendarDays, Check, Clock3, Coins, Crown, ReceiptText, RefreshCw, ShieldCheck, Sparkles } from 'lucide-react';
 import { useApp } from '../state/appState';
-import { dateText } from '../services/api';
-import { families, creditPacks, membershipOffer, creditsOffer, money, type OfferFamily, type OfferPeriod } from '../data/membershipOffers';
-import { PageShell } from './Common';
+import { products, festivalBonus, money, type Product } from '../data/membershipOffers';
+import { festivalPhase } from '../data/festival';
+import { PageShell, ErrorState } from './Common';
 import { Sheet } from './Sheets';
+import { useResource } from '../hooks/useResource';
+import { api, messageOf } from '../services/api';
+import { MembershipEmblem } from './MembershipEmblem';
 
-type Selection = { family: OfferFamily; period: OfferPeriod; kind: 'membership' | 'credits'; pack: number };
-const initial: Selection = { family: 'joy', period: 'month', kind: 'membership', pack: 0 };
-function loadSelection(): Selection {
-  try { const v = JSON.parse(sessionStorage.getItem('aiai-membership-selection-v2') || 'null'); if (v && ['joy','prestige'].includes(v.family) && ['month','year'].includes(v.period) && ['membership','credits'].includes(v.kind) && Number.isInteger(v.pack) && v.pack >= 0 && v.pack < 4) return v; } catch {}
-  return initial;
-}
+type PointsSummary = { summary: { balance: number; memberBalance: number; paidViewActive: boolean; permanentMember: boolean; membershipExpiresAt: string | null; trialActive: boolean } };
+type Trial = { status: 'available'|'active'|'expired'|'claimed'|'ineligible'; startsAt: string|null; expiresAt: string|null };
+const positions = ['入门畅看', '中期畅看', '长期权益'];
+
 export function MembershipPage({ navigate, onBack }: { navigate: (path: string) => void; onBack: () => void }) {
-  const { session, login } = useApp();
-  const [selection, setSelection] = useState(loadSelection), [summary, setSummary] = useState(false), [pendingLogin, setPendingLogin] = useState(false);
-  const { family, period, kind, pack } = selection;
-  const offer = kind === 'credits' ? creditsOffer(pack) : membershipOffer(family, period);
-  const expiry = session?.membership?.expiresAt;
-  const expired = !!expiry && Number.isFinite(Date.parse(expiry)) && Date.parse(expiry) <= Date.now();
-  const paid = session?.tier === 'basic' || session?.tier === 'premium';
-  const status = !session?.subject ? '未登录' : expired ? '会员已到期' : paid ? (session.tier === 'premium' ? '高级会员' : '基础会员') : '免费用户';
-  const action = kind === 'credits' ? '购买积分' : expired ? '重新开通' : paid ? '查看方案' : '立即开通';
-  const select = (patch: Partial<Selection>) => { setSummary(false); setSelection(v => ({ ...v, ...patch })); };
-  const purchase = () => { if (!session?.subject) { setPendingLogin(true); login(); } else setSummary(true); };
-  useEffect(() => { try { sessionStorage.setItem('aiai-membership-selection-v2', JSON.stringify(selection)); } catch {} }, [selection]);
-  useEffect(() => { if (pendingLogin && session?.subject) { setPendingLogin(false); setSummary(true); } }, [pendingLogin, session?.subject]);
-  return <div className="membership-page membership-showcase">
-    <PageShell title="会员中心" onBack={onBack}>
-      <div className="membership-intro"><div className="vip-emblem" aria-hidden="true"><i/><Crown size={40}/><i/></div><h2><em>爱爱短剧</em> 会员方案</h2><p>会员每月送积分，精彩剧集按需解锁</p></div>
-      <section className="member-brand"><span>{status}</span>{paid && expiry && <small>{expired ? '已于 ' : '有效期至 '}{dateText(expiry)}</small>}</section>
-      <fieldset className="period-switch"><legend className="sr-only">会员周期</legend>{(['month','year'] as const).map(p => <label key={p}><input type="radio" name="membership-period" checked={period === p} onChange={() => select({ period: p, kind: 'membership' })}/><span>{p === 'month' ? '月度会员' : '年度会员'}</span></label>)}</fieldset>
-      <fieldset className="membership-options"><legend className="sr-only">会员套餐</legend>{(['joy','prestige'] as const).map(f => { const value = membershipOffer(f, period); return <label className={'membership-option ' + f} key={f}><input type="radio" name="membership-family" aria-label={families[f].name} checked={family === f && kind === 'membership'} onChange={() => select({ family: f, kind: 'membership' })}/><span className="membership-option-surface">{f === 'joy' && <span className="recommended"><Crown size={11}/>推荐</span>}<span className="option-title">{f === 'joy' ? <Crown size={18}/> : <Gem size={18}/>}<strong>{families[f].name}</strong></span><span className="option-price"><small>¥</small><b>{money(value.price)}</b><small>/{period === 'year' ? '年' : '月'}</small></span><span className="credit-pill">{value.credits} <small>积分/月</small></span><span className="plan-benefits">{families[f].benefits.map(b => <span key={b}><Check size={14}/>{b}</span>)}</span><span className="plan-select-label">{family === f && kind === 'membership' ? <><Check size={14}/>已选择</> : '选择方案'}</span></span></label>; })}</fieldset>
-      <section className="free-comparison"><div><strong>免费用户</strong><span><b>¥0</b> · 40 积分/月</span></div><p>短剧可看 · 前段剧集免费<br/>积分解锁后续剧集 · 1 台设备</p><button className="free-plan-state" disabled={!!session?.subject && (!paid || expired)} onClick={() => navigate('/')}>{session?.subject && (!paid || expired) ? '当前方案' : '免费开始'}</button></section>
-      <section className="credits-section"><header><h3>积分不够？<em>按需补充</em></h3><Coins size={23}/></header><fieldset className="credit-pack-grid"><legend className="sr-only">积分包</legend>{creditPacks.map((value, index) => <label key={value.credits}><input type="radio" name="credit-pack" aria-label={value.credits + ' 积分'} checked={kind === 'credits' && pack === index} onChange={() => select({ kind: 'credits', pack: index })}/><span><strong>{value.credits.toLocaleString()}<small> 积分</small></strong><b>¥{money(value.price)}</b><i><Check size={12}/></i></span></label>)}</fieldset></section>
-      <section className="annual-offers"><h3>年卡更省</h3>{(['joy','prestige'] as const).map(f => <button key={f} className={f} onClick={() => select({ family: f, period: 'year', kind: 'membership' })}><span>{f === 'joy' ? '悦享年卡' : '尊享年卡'}<small>按月购买 ¥{families[f].yearlyComparison}</small></span><strong>¥{families[f].yearly}<small>/年</small></strong><ChevronRight size={16}/></button>)}</section>
-      <p className="membership-end">18+专区需完成年龄与地区验证</p>
-    </PageShell>
-    <footer className={'membership-purchase ' + (kind === 'membership' ? family : 'credits')}><div aria-live="polite"><small>{offer.title}</small><strong><small>¥</small>{money(offer.price)}<span>/{kind === 'credits' ? '次' : period === 'year' ? '年' : '月'}</span></strong></div><button onClick={purchase}>{action}<ArrowRight size={16}/></button></footer>
-    <Sheet open={summary} title={kind === 'credits' ? '积分购买' : '开通会员'} onClose={() => setSummary(false)}><div className="offer-order-summary"><h3>{offer.title}</h3><strong>¥{money(offer.price)}<small> / {offer.period}</small></strong><p role="status">该方案暂未开放购买，当前不会创建订单或扣款。</p><button className="primary-button" onClick={() => setSummary(false)}>知道了</button></div></Sheet>
-  </div>;
+  const { session, login } = useApp(), points = useResource<PointsSummary>(session?.subject ? '/me/points' : null), trial = useResource<{ trial: Trial }>(session?.subject ? '/me/overview' : null);
+  const [selected, setSelected] = useState<Product | null>(null), [trialBusy, setTrialBusy] = useState(false), [trialError, setTrialError] = useState('');
+  const membership = session?.membership as ({ expiresAt: string | null; permanent?: boolean } | null | undefined);
+  const lifetime = membership?.permanent || points.data?.summary.permanentMember, expiry = membership?.expiresAt || points.data?.summary.membershipExpiresAt;
+  const status = !session?.subject ? '未登录' : lifetime ? '永久会员' : points.data?.summary.paidViewActive ? '畅看会员' : '免费用户';
+  const trialState = trial.data?.trial;
+  const claimTrial = async () => { if (!session?.subject) return login(); setTrialBusy(true); setTrialError(''); try { await api('/me/trial', 'POST', { source: 'app' }); trial.reload(); points.reload(); } catch (e) { setTrialError(messageOf(e)); } finally { setTrialBusy(false); } };
+  const plans = products.filter(p => p.kind === 'membership');
+  return <div className="membership-page latest-membership membership-showcase"><PageShell title="畅看会员" onBack={onBack}>
+    <div className="member-universe" aria-hidden="true"><i/><i/><i/></div>
+    <header className="membership-intro"><Sparkles className="member-spark"/><div className="vip-emblem"><Crown size={46}/></div><h2><span>爱爱短剧</span> 畅看会员</h2><p>会员期内畅看不扣积分 · 永久积分按需购买</p></header>
+    <section className="member-status-card membership-account"><div className="member-avatar"><Crown/></div><div className="member-account-copy"><div className="member-account-title"><h3>{session?.subject ? session.nickname || '爱爱短剧用户' : '登录后查看会员权益'}</h3><span><Crown size={14}/>{status}</span></div>{expiry && !lifetime && <p><CalendarDays size={14}/>有效期至 {new Date(expiry).toLocaleDateString('zh-CN')}</p>}<div className="member-balances"><button onClick={() => navigate('/me/points')}>永久积分 <strong>{points.loading ? '…' : points.error ? '暂不可用' : points.data?.summary.balance ?? 0}</strong></button><button onClick={() => navigate('/me/points?tab=member')}>会员积分 <strong>{points.loading ? '…' : points.error ? '暂不可用' : points.data?.summary.memberBalance ?? 0}</strong></button></div></div>{points.error && <ErrorState error="积分服务暂时不可用" retry={points.reload}/>}<button className="member-order-button" onClick={() => navigate('/me/orders')}><ReceiptText size={17}/>我的订单 <ArrowRight size={15}/></button></section>
+    <section className="trial-card membership-trial"><span className="trial-clock"><Clock3/><i>24h</i></span><div><small>限时体验</small><h3>24 小时免费畅看</h3><p>{!session?.subject ? '登录后查看领取资格' : lifetime ? '永久会员已享畅看权益' : trial.loading ? '正在加载体验状态…' : trial.error ? '体验资格暂时无法获取' : trialState?.status === 'active' ? `体验中 · 至 ${trialState.expiresAt ? new Date(trialState.expiresAt).toLocaleString('zh-CN') : '服务端确认'}` : trialState?.status === 'available' ? (session.tier === 'free' ? '免费用户可领取一次，不支付、不自动扣款' : '领取后当前会员有效期增加 1 天') : '领取机会已使用或不符合资格'}</p>{trialError && <p role="alert">{trialError}</p>}</div><button disabled={trialBusy || !!lifetime || !!session?.subject && trialState?.status !== 'available'} onClick={() => void claimTrial()}>{!session?.subject ? '登录领取' : trialBusy ? '领取中…' : trialState?.status === 'available' ? '立即领取' : '不可领取'}<ArrowRight size={15}/></button></section>
+    <p className="membership-free-note">免费用户可直接观看免费剧集；付费单集使用永久积分解锁。签到积分不提供会员专区权限。</p>
+    <section className="latest-plan-grid recharge-tiers" aria-label="畅看会员方案">{plans.map((plan, index) => <article key={plan.id} className={`latest-plan-card recharge-card recharge-tone-${index}`}><header><MembershipEmblem level={index}/><h3>{plan.title}</h3><small>{positions[index]}</small></header><div className="latest-price"><small>¥</small>{money(plan.price)}<em>/{plan.durationDays ? `${plan.durationDays} 天` : '永久'}</em></div><p className="plan-pill">{plan.durationDays ? '观看不扣积分 · 每日签到领会员积分' : '无到期日 · 观看不扣积分'}</p>{festivalPhase() === 'active' && festivalBonus[plan.id] && <p className="festival-plan-bonus">双节活动额外赠 <b>{festivalBonus[plan.id]}</b> 天畅看</p>}<div className="plan-rule"/><ul>{plan.benefits.map(value => <li key={value}><span><Check size={12}/></span>{value}</li>)}</ul><button className="recharge-cta" disabled={!!lifetime} onClick={() => !session?.subject ? login() : navigate('/checkout?plan=' + plan.id)}>{lifetime ? '已享永久权益' : `选择${plan.title}`}<ArrowRight size={17}/></button></article>)}</section>
+    <section className="points-offer membership-credits"><div><small>按需补充</small><h3><Coins/> 永久积分</h3><p>积分永不过期，可重复购买。</p><span>免费用户付费单集 5 积分；不能换取会员专区权限。</span></div><strong><b>220 永久积分</b>¥10.9</strong><button onClick={() => setSelected(products.find(p => p.id === 'points-220')!)}>购买永久积分 <ArrowRight size={15}/></button></section>
+    <nav className="membership-service-links"><button onClick={() => navigate('/me/orders')}>我的订单 <ArrowRight size={14}/></button><button onClick={() => navigate('/membership-guide')}>会员与积分说明 <ArrowRight size={14}/></button></nav><p className="membership-payment-note"><ShieldCheck size={14}/>支付前请核对商品、金额及账户；18+专区仍需确认年满18周岁。</p>
+  </PageShell><Sheet open={!!selected} title="购买永久积分" onClose={() => setSelected(null)}><div className="offer-order-summary"><h3>{selected?.title}</h3><strong>¥{selected && money(selected.price)}</strong><p role="status">购买需要服务端创建真实订单；当前不会在本地伪造积分到账。</p><button className="primary-button" onClick={() => { setSelected(null); navigate('/checkout?plan=points-220'); }}>获取服务端报价</button><button className="secondary-button" onClick={() => setSelected(null)}><RefreshCw size={15}/>稍后再说</button></div></Sheet></div>;
 }

@@ -1,208 +1,54 @@
-import { chromium, expect } from '@playwright/test';
-import { mkdir, writeFile } from 'node:fs/promises';
-const baseURL = process.env.APP_TEST_URL || 'http://127.0.0.1:5173/';
-const out = 'docs/screenshots/parity';
-await mkdir(out, { recursive: true });
-const browser = await chromium.launch({ channel: 'chrome', headless: true, args: ['--disable-gpu', '--renderer-process-limit=2'] });
-const results = [], faults = [];
-async function test(name, fn) { const start = Date.now(); try { await fn(); results.push({ name, ok: true, ms: Date.now() - start }); } catch (e) { results.push({ name, ok: false, error: e.message }); } console.log(JSON.stringify(results.at(-1))); }
-async function open(width = 390) {
-  const context = await browser.newContext({ viewport: { width, height: 844 }, isMobile: true, hasTouch: true });
-  await context.addInitScript(() => sessionStorage.setItem('aiai-app-intro-seen', '1'));
-  const page = await context.newPage(); page.on('pageerror', e => faults.push(e.message));
-  return { page, context };
+import { chromium } from '@playwright/test';
+const base = process.env.APP_TEST_URL || 'http://127.0.0.1:5173/';
+const browser = await chromium.launch({ channel: 'chrome', headless: true });
+const errors = [];
+const widths = [360,390,430];
+const products = {
+  'view-month': { title:'畅看月卡', total:88, durationDays:30, validity:'fixed' },
+  'view-quarter': { title:'畅看季卡', total:188, durationDays:90, validity:'fixed' },
+  'view-forever': { title:'永久会员', total:388, durationDays:null, validity:'permanent' },
+  'points-220': { title:'220 永久积分', total:10.9, durationDays:null, validity:'permanent' },
+};
+async function mock(page){
+ await page.addInitScript(()=>{sessionStorage.setItem('aiai-app-intro-seen','1');});
+ await page.route('**/api/v1/**',async route=>{
+  const req=route.request(),url=new URL(req.url()),path=url.pathname.replace('/api/v1',''),method=req.method();let status=200,value={};
+  if(path==='/session')value={subject:'verify-user',nickname:'验收用户',tier:'free',roles:[],expiresAt:null,membership:null};
+  else if(path==='/me/points')value={summary:{balance:66,memberBalance:21,paidViewActive:false,permanentMember:false,membershipExpiresAt:null,checkedInToday:false,checkInType:null},transactions:[],memberTransactions:[],unlocks:[]};
+  else if(path==='/me/overview')value={checkIn:{checkedInToday:false,rewardType:null,rewardAmount:0,streakDays:2,cycleDay:3,nextResetAt:'2026-09-24T16:00:00Z',rewards:Array.from({length:7},(_,i)=>({day:i+1,points:i===6?4:1,status:i<2?'claimed':i===2?'today':'upcoming'}))},trial:{status:'available',startsAt:null,expiresAt:null}};
+  else if(path==='/festival')value={activityId:'midautumn-national-2026',phase:'active',claimed:false,appClaimed:false,invitationCode:'VERIFY2026',successfulInvites:2,rewardedInvites:2,participationReward:0,invitationReward:100,appReward:0,totalReward:100,permanentBalance:66,records:[]};
+  else if(path==='/adult/consent'&&method==='POST')value={granted:true};
+  else if(path==='/adult/consent'&&method==='DELETE')value={};
+  else if(path==='/orders')value=[];
+  else if(path==='/me/watch-progress'||path==='/me/comments'||path==='/me/notifications'||path==='/support/tickets')value=[];
+  else if(path==='/me/profile')value={id:'verify-user',nickname:'验收用户',bio:'',avatarUrl:null};
+  else if(path==='/membership/quotes'&&method==='POST'){const body=req.postDataJSON(),product=products[body.planId];if(!product){status=404;value={};}else value={id:'quote-'+body.planId,planId:body.planId,total:product.total,currency:'CNY',expiresAt:'2027-10-01T00:00:00Z',autoRenew:false,durationDays:product.durationDays,validity:product.validity};}
+  else if(path.includes('/contents/')&&!path.endsWith('/playback'))value={preview_episode_ids:['1','2','3','4','5','6']};
+  else {status=503;value={message:'service_unavailable'};}
+  await route.fulfill({status,contentType:'application/json',body:JSON.stringify(value)});
+ });
 }
-const go = async (page, path = '/') => { await page.goto(baseURL + '#' + path); await page.waitForTimeout(180); };
-const shot = (page, name) => page.screenshot({ path: out + '/' + name + '.png' });
-for (const width of [360, 390, 430]) await test('布局、详情完整选集与返回 ' + width, async () => {
-  const { page, context } = await open(width);
-  try {
-    await go(page); await expect(page.locator('.hero-card[data-active=true]')).toBeVisible();
-    expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
-    await shot(page, 'home-' + width);
-    await page.locator('.hero-card[data-active=true]').click();
-    await expect(page.locator('.reference-detail')).toBeVisible();
-    await expect(page.locator('.reference-episodes button')).toHaveCount(48);
-    await shot(page, 'detail-' + width);
-    await page.getByRole('button', { name: '第 48 集', exact: true }).click();
-    await expect(page.locator('.reference-player')).toBeVisible();
-    await expect(page.getByText('第 48 集 / 共 48 集')).toBeVisible();
-    await expect(page.getByRole('button', { name: '下一集', exact: true })).toBeDisabled();
-    await expect(page.locator('.playback-unavailable')).toContainText('暂时无法播放', { timeout: 16000 });
-    expect(await page.locator('video').count()).toBe(0);
-    await shot(page, 'player-unavailable-' + width);
-    await page.getByRole('button', { name: '返回详情' }).click();
-    await page.goBack(); await expect(page.locator('.reference-detail')).toHaveCount(0);
-  } finally { await context.close(); }
-});
-await test('未接服务不能假登录、评论草稿保留、密码重置', async () => {
-  const { page, context } = await open();
-  try {
-    await go(page, '/detail/drama-08');
-    await page.getByRole('textbox', { name: '评论内容' }).fill('这段剧情很有意思');
-    await page.getByRole('button', { name: '发送评论' }).click();
-    const dialog = page.getByRole('dialog', { name: '登录爱爱短剧' });
-    await expect(dialog).toBeVisible();
-    await dialog.getByPlaceholder('请输入用户名 / 手机号 / 邮箱').fill('viewer');
-    await dialog.getByPlaceholder('请输入密码').fill('password123');
-    await dialog.getByRole('checkbox').check(); await dialog.getByRole('button', { name: '登录', exact: true }).click();
-    await expect(dialog.locator('[role=alert]')).toBeVisible({ timeout: 16000 });
-    await expect(dialog).toBeVisible(); expect(await page.evaluate(() => sessionStorage.getItem('aiai-user-login'))).toBeNull();
-    await page.keyboard.press('Escape'); await expect(dialog).toHaveCount(0);
-    await expect(page.getByRole('textbox', { name: '评论内容' })).toHaveValue('这段剧情很有意思');
-    await page.reload(); await expect(page.getByRole('textbox', { name: '评论内容' })).toHaveValue('这段剧情很有意思');
-    await go(page, '/me'); await page.getByRole('button', { name: '登录', exact: true }).click();
-    await page.getByRole('button', { name: '忘记密码？' }).click();
-    await page.getByPlaceholder('请输入邮箱地址').fill('test@example.com');
-    await page.getByRole('button', { name: '发送重置邮件' }).click();
-    await expect(page.locator('.auth-form [role=alert]')).toBeVisible();
-    await shot(page, 'forgot-service-error'); await page.keyboard.press('Escape');
-  } finally { await context.close(); }
-});
-async function mockBackend(page, signedIn = true) {
-  let logged = signedIn;
-  let comments = [
-    { id: 'c1', contentId: 'drama-08', episodeId: '1', parentId: null, author: { id: 'other', nickname: '月下追剧' }, content: '细节很耐看，期待下一集的故事。', spoiler: false, status: 'published', likeCount: 5, liked: false, createdAt: '2026-09-15T12:00:00Z' },
-    { id: 'c2', contentId: 'drama-08', episodeId: '1', parentId: 'c1', author: { id: 'other2', nickname: '一眼入戏' }, content: '我也觉得这一集的转折很自然。', spoiler: false, status: 'published', likeCount: 1, liked: false, createdAt: '2026-09-16T12:00:00Z' }
-  ];
-  let profile = { id: 'u1', nickname: '测试观众', bio: '喜欢好故事', avatarUrl: null }, tickets = [];
-  const requests = [];
-  await page.route('**/api/v1/**', async route => {
-    const req = route.request(), url = new URL(req.url()), path = url.pathname.replace('/api/v1', ''), method = req.method(), body = req.postDataJSON();
-    requests.push({ path, method, body });
-    let value, status = 200;
-    const session = { subject: logged ? 'u1' : null, nickname: profile.nickname, tier: 'free', roles: [], expiresAt: '2027-01-01T00:00:00Z' };
-    if (path === '/session') { if (method === 'DELETE') logged = false; value = method === 'DELETE' ? { subject: null } : session; }
-    else if (path === '/auth/sign-in' || path === '/auth/register') { logged = true; value = { ...session, subject: 'u1' }; }
-    else if (path === '/comments' && method === 'GET') value = { items: comments.filter(c => c.contentId === url.searchParams.get('contentId') && c.episodeId === url.searchParams.get('episodeId')), cursor: null };
-    else if (path === '/comments' && method === 'POST') { const c = { ...body, id: 'new-' + comments.length, parentId: body.parentId ?? null, author: { id: 'u1', nickname: profile.nickname }, status: 'pending', likeCount: 0, liked: false, createdAt: new Date().toISOString() }; comments.push(c); value = c; }
-    else if (/^\/comments\/[^/]+\/like$/.test(path)) { const c = comments.find(c => c.id === path.split('/')[2]); c.liked = method === 'PUT'; c.likeCount += c.liked ? 1 : -1; value = { liked: c.liked, likeCount: c.likeCount }; }
-    else if (path.startsWith('/comments/') && method === 'DELETE') { comments = comments.filter(c => c.id !== path.split('/')[2]); value = {}; }
-    else if (path.endsWith('/reports')) value = { reportId: 'r1', status: 'submitted' };
-    else if (path === '/me/profile') { if (method === 'PATCH') profile = { ...profile, ...body }; value = profile; }
-    else if (path === '/me/comments') value = comments.filter(c => c.author.id === 'u1');
-    else if (path === '/me/notifications') value = [{ id: 'n1', kind: 'reply', title: '收到一条回复', body: '来看看大家的讨论', href: '/detail/drama-08', read: false, createdAt: '2026-09-16T12:00:00Z' }];
-    else if (path.startsWith('/me/notifications/')) value = {};
-    else if (/^\/(green|adult)\/contents\/[^/]+$/.test(path)) value = { preview_episode_ids: ['1','2','3','4','5','6','7'] };
-    else if (path.endsWith('/playback')) value = { contentId: path.split('/')[3], sources: [{ src: '/media/demo/portrait.mp4', type: 'video/mp4' }], expiresAt: '2027-01-01T00:00:00Z', previewEpisodeIds: ['1','2'], adFree: true };
-    else if (path === '/me/watch-progress') value = method === 'GET' ? [] : {};
-    else if (path.startsWith('/privacy/')) value = { deleted: 1 };
-    else if (path === '/membership/quotes') value = { id: 'q1', planId: body.planId, autoRenew: false, total: 19, currency: 'CNY', expiresAt: '2027-01-01T00:00:00Z' };
-    else if (path === '/orders' && method === 'POST') value = { orderId: 'o1', checkoutUrl: '/payment-result?orderId=o1' };
-    else if (path.startsWith('/orders')) { const order = { id: 'o1', status: 'paid', total: 19, currency: 'CNY', createdAt: '2026-09-17T12:00:00Z' }; value = path === '/orders' ? [order] : order; }
-    else if (path === '/support/tickets') { if (method === 'POST') { const t = { ...body, id: 't1', status: 'open', createdAt: new Date().toISOString() }; tickets.push(t); value = t; } else value = tickets; }
-    else { status = 503; value = {}; }
-    await route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(value) });
-  });
-  return requests;
-}
-await test('接口模拟：登录回到评论、回复显示、点赞删除、排序与草稿隔离', async () => {
-  const { page, context } = await open();
-  try {
-    const requests = await mockBackend(page, false); await go(page, '/detail/drama-08');
-    await expect(page.getByText('我也觉得这一集的转折很自然。')).toBeVisible();
-    await page.getByRole('textbox', { name: '评论内容' }).fill('这部剧的氛围真不错');
-    await page.getByRole('button', { name: '发送评论' }).click();
-    await page.getByPlaceholder('请输入用户名 / 手机号 / 邮箱').fill('viewer'); await page.getByPlaceholder('请输入密码').fill('password123'); await page.getByRole('dialog').getByRole('checkbox').check(); await page.getByRole('button', { name: '登录', exact: true }).click();
-    await expect(page.getByRole('dialog')).toHaveCount(0);
-    await expect(page.getByRole('textbox', { name: '评论内容' })).toHaveValue('这部剧的氛围真不错');
-    await page.getByRole('button', { name: '发送评论' }).click(); await expect(page.getByText('审核中')).toBeVisible();
-    await page.getByRole('button', { name: '赞评论' }).first().click(); await expect(page.getByRole('button', { name: '赞评论' }).first()).toHaveAttribute('aria-pressed', 'true');
-    await page.getByRole('button', { name: '回复', exact: true }).first().click(); await page.getByRole('textbox', { name: '评论内容' }).fill('同意，细节也很丰富'); await page.getByRole('button', { name: '发送评论' }).click();
-    await expect(page.getByText('同意，细节也很丰富')).toBeVisible();
-    await page.getByRole('button', { name: '最新', exact: true }).click(); await shot(page, 'detail-comments-mocked');
-    expect(requests.filter(r => r.path === '/comments' && r.method === 'POST')).toHaveLength(2);
-    expect(requests.filter(r => r.path === '/comments' && r.method === 'POST')[1].body.parentId).toBe('c1');
-    await page.getByRole('button', { name: '删除', exact: true }).first().click();
-    await go(page, '/detail/drama-03'); await expect(page.getByRole('textbox', { name: '评论内容' })).toHaveValue('');
-  } finally { await context.close(); }
-});
-await test('接口模拟：播放、切集、进度持久化与跨页收藏一致', async () => {
-  const { page, context } = await open();
-  try {
-    const requests = await mockBackend(page); await go(page, '/play/drama-08?episode=1');
-    const video = page.locator('video'); await expect(video).toBeVisible();
-    await expect.poll(() => video.evaluate(v => v.readyState)).toBeGreaterThanOrEqual(2);
-    await video.evaluate(v => { v.currentTime = Math.min(7, v.duration / 2); v.dispatchEvent(new Event('timeupdate')); v.pause(); });
-    await page.getByRole('button', { name: '收藏', exact: true }).click();
-    await page.getByRole('button', { name: '播放设置' }).click(); await page.getByRole('radio', { name: '1.5×', exact: true }).click(); await page.keyboard.press('Escape');
-    await shot(page, 'player-mocked');
-    await page.getByRole('button', { name: '下一集', exact: true }).click(); await expect(page.getByText('第 2 集 / 共 32 集')).toBeVisible();
-    expect(requests.some(r => r.path.endsWith('/playback') && r.body.episodeId === '2')).toBeTruthy();
-    await page.getByRole('button', { name: '返回详情' }).click(); await expect(page.locator('.watch-progress-card')).toContainText('上次看到');
-    await page.getByRole('button', { name: '追剧', exact: true }).click(); await page.getByRole('tab', { name: '收藏', exact: true }).click(); await expect(page.locator('.drama-rows')).toContainText('月色不晚');
-    await page.reload(); await page.getByRole('tab', { name: '收藏', exact: true }).click(); await expect(page.locator('.drama-rows')).toContainText('月色不晚');
-    await go(page, '/me/history'); await expect(page.locator('.history-list')).toContainText('月色不晚');
-  } finally { await context.close(); }
-});
-await test('接口模拟：个人资料、会员订单、消息与反馈工单闭环', async () => {
-  const { page, context } = await open();
-  try {
-    const requests = await mockBackend(page); await go(page, '/me/profile');
-    await page.getByLabel('昵称', { exact: true }).fill('追剧小夏'); await page.getByLabel('个人简介').fill('每天发现一个好故事'); await page.getByRole('button', { name: '保存资料' }).click(); await expect(page.getByText('资料已保存')).toBeVisible();
-    await go(page, '/me'); await expect(page.locator('.profile-head')).toContainText('追剧小夏'); await shot(page, 'profile-mocked');
-    await go(page, '/checkout?plan=basic-month');
-    await page.getByRole('button', { name: '获取最新报价' }).click(); await page.getByRole('button', { name: '提交订单并前往支付' }).click(); await expect(page.getByRole('heading', { name: '已支付' })).toBeVisible(); await shot(page, 'order-mocked');
-    await go(page, '/support/feedback'); await page.getByLabel('标题', { exact: true }).fill('播放加载问题'); await page.getByLabel('问题描述').fill('切换到第二集时加载较慢，希望可以优化播放体验。'); await page.getByRole('button', { name: '提交反馈' }).click(); await expect(page.getByRole('heading', { name: '反馈详情' })).toBeVisible(); await expect(page.getByText('播放加载问题')).toBeVisible();
-    await go(page, '/me/messages'); await page.getByRole('button', { name: '查看消息' }).click(); await expect(page.locator('.reference-detail')).toBeVisible();
-    expect(requests.some(r => r.path === '/me/profile' && r.method === 'PATCH')).toBeTruthy();
-    expect(requests.some(r => r.path === '/support/tickets' && r.method === 'POST')).toBeTruthy();
-  } finally { await context.close(); }
-});
-await test('完整页面巡检与无效路径、专区深链接保护', async () => {
-  const { page, context } = await open();
-  try {
-    await mockBackend(page);
-    for (const path of ['/rankings','/shorts','/comics','/collections','/free','/updates','/membership','/me','/me/favorites','/me/comments','/me/messages','/me/privacy','/settings','/me/orders','/me/orders/o1','/support','/support/account','/support/feedback','/support/tickets','/terms','/privacy','/membership-guide','/copyright','/about']) {
-      await go(page, path); await expect(page.locator('.subpage, .profile-screen').filter({ visible: true }).first()).toBeVisible();
-      expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
-    }
-    await go(page, '/detail/no-such-id'); await expect(page.getByText('没有找到这部剧')).toBeVisible();
-    await go(page, '/play/private-preview-1'); await expect(page.getByText('请先完成专区访问确认')).toBeVisible(); expect(await page.locator('video').count()).toBe(0);
-    await go(page, '/'); await page.getByRole('button', { name: '完整榜单' }).click(); await expect(page.getByRole('heading', { name: '短剧排行榜' })).toBeVisible(); await page.goBack(); await expect(page.locator('.hero-frame')).toBeVisible();
-  } finally { await context.close(); }
-});
-await test('异常参数、重置链接、头像、专区收藏与弹层焦点', async () => {
-  const { page, context } = await open();
-  try {
-    await mockBackend(page);
-    await go(page, '/account/reset-password'); await expect(page.getByText('链接无效或已过期')).toBeVisible();
-    await go(page, '/account/reset-password?token=abcdefghijklmnopqrstuvwxyz');
-    await page.getByLabel('新密码', { exact: true }).fill('password123'); await page.getByLabel('确认新密码', { exact: true }).fill('different123');
-    await page.getByRole('button', { name: '保存新密码' }).click(); await expect(page.getByText('两次输入的密码不一致。')).toBeVisible();
-    await go(page, '/me/orders/%E0%A4%A'); await expect(page.locator('.subpage-header')).toContainText('订单详情');
-    await go(page, '/play/drama-08?episode=1.8'); await expect(page.getByText('第 1 集 / 共 32 集')).toBeVisible();
-    await page.getByRole('button', { name: '播放设置' }).click();
-    await page.keyboard.press('Tab'); expect(await page.locator('[aria-modal=true]').evaluate(el => el.contains(document.activeElement))).toBeTruthy();
-    await page.keyboard.press('Escape'); await expect(page.getByRole('dialog')).toHaveCount(0);
-    await go(page, '/me/profile');
-    await page.locator('input[type=file]').setInputFiles({ name: 'avatar.png', mimeType: 'image/png', buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aV6kAAAAASUVORK5CYII=', 'base64') });
-    await expect(page.locator('.profile-avatar-large img')).toBeVisible();
-    await page.getByRole('button', { name: '恢复默认头像' }).click(); await expect(page.locator('.profile-avatar-large img')).toHaveCount(0);
-    await go(page, '/18plus'); await page.getByRole('button', { name: /确认并进入/ }).click();
-    await page.getByRole('button', { name: '收藏高三爱情故事', exact: true }).click();
-    await page.locator('.adult-wishlist').click(); await expect(page.getByRole('heading', { name: '我的私密收藏' })).toBeVisible();
-    await expect(page.locator('.adult-grid .adult-card')).toHaveCount(1);
-    await page.getByRole('button', { name: '查看《高三爱情故事》' }).click();
-    await page.getByRole('button', { name: '第 1 集', exact: true }).click();
-    await expect(page.getByRole('button', { name: '收藏', exact: true })).toHaveAttribute('aria-pressed', 'true');
-    await page.setViewportSize({ width: 360, height: 640 }); await shot(page, 'player-small-height-mocked');
-  } finally { await context.close(); }
-});
-await test('权限拒绝、接口失败与损坏缓存恢复', async () => {
-  const { page, context } = await open();
-  try {
-    await context.addInitScript(() => localStorage.setItem('aiai-app-records:guest', JSON.stringify({ following: null, saved: [null, 12], history: [null, { contentId: 'drama-01' }] })));
-    await page.route('**/api/v1/**', route => route.fulfill({ status: route.request().url().endsWith('/playback') ? 403 : 503, contentType: 'application/json', body: '{}' }));
-    await go(page, '/'); await expect(page.locator('.hero-frame')).toBeVisible(); await expect(page.locator('.continue-card')).toHaveCount(0);
-    await go(page, '/play/drama-08?episode=8'); await expect(page.getByText('本集需要解锁')).toBeVisible(); expect(await page.locator('video').count()).toBe(0);
-    await page.getByRole('button', { name: '查看会员权益' }).click(); await expect(page.getByRole('heading', { name: '会员中心', exact: true })).toBeVisible();
-    await go(page, '/detail/drama-08'); await expect(page.locator('.discussion .error-state')).toBeVisible(); await expect(page.getByText('还没有评论，来聊聊这部剧吧。')).toHaveCount(0);
-  } finally { await context.close(); }
-});
-
-await browser.close();
-const report = { ok: results.every(r => r.ok) && !faults.length, results, pageErrors: faults, note: '接口模拟仅用于自动化验证；不代表真实后端、支付或片源已上线。' };
-await writeFile('docs/verification-parity.json', JSON.stringify(report, null, 2));
-console.log(JSON.stringify(report, null, 2));
-if (!report.ok) process.exitCode = 1;
+async function go(page,path){await page.goto(base+'#'+path);await page.waitForLoadState('domcontentloaded');await page.waitForTimeout(180);}
+function assert(condition,message){if(!condition)throw new Error(message);}
+try{
+ for(const width of widths){
+  const page=await browser.newPage({viewport:{width,height:844}});await mock(page);page.on('console',m=>{if(m.type()==='error')errors.push(`${width}: ${m.text()}`)});page.on('pageerror',e=>errors.push(`${width}: ${e.message}`));
+  await go(page,'/');
+  const nav=await page.locator('.bottom-nav button').allTextContents();assert(nav.join('|').includes('首页')&&nav.join('|').includes('刷剧')&&nav.join('|').includes('18+专区')&&nav.join('|').includes('追剧')&&nav.join('|').includes('我的'),'底部导航不完整');
+  const home=await page.locator('.phone-surface').innerText();for(const old of ['排行榜','精选专题','免费专区','追更日历','本周热榜','编辑精选','猜你喜欢'])assert(!home.includes(old),`首页仍包含 ${old}`);
+  assert(home.includes('月满中秋 · 礼遇国庆')&&home.includes('任务最高领 350 永久积分'),'首页轮播缺少双节活动入口');
+  assert(await page.locator('.hero-festival-card .hero-festival-title').count()===1,'首页活动轮播缺少主文案图层');
+  assert(home.includes('热门推荐')&&home.includes('最新更新'),'首页业务结构不完整');
+  const overflow=await page.locator('.phone-surface').evaluate(el=>el.scrollWidth>el.clientWidth+1);assert(!overflow,`${width}px 存在横向溢出`);
+  await go(page,'/membership');const membership=await page.locator('.membership-page').innerText();for(const expected of ['¥88','¥188','¥388','220 永久积分','¥10.9','24 小时免费畅看'])assert(membership.includes(expected),`会员页缺少 ${expected}`);assert(await page.locator('.recharge-emblem svg').count()===3,'会员方案缺少 WEB 分层徽章');for(const old of ['19.9','39.9','¥168','¥328','60 积分','200 积分','580 积分','1500 积分','年龄与地区'])assert(!membership.includes(old),`会员页仍含旧文案 ${old}`);
+  await go(page,'/me/points');const points=await page.locator('.subpage').innerText();assert(points.includes('永久积分')&&points.includes('会员积分')&&points.includes('每日签到')&&points.includes('20 会员积分')&&points.includes('50 会员积分')&&points.includes('100 会员积分'),'积分页规则不完整');
+  await go(page,'/festival');const festival=await page.locator('.subpage').innerText();assert(festival.includes('midautumn-national-2026')&&festival.includes('APP 专享 50 永久积分')&&festival.includes('畅看月卡')&&festival.includes('+7 天')&&festival.includes('+30 天'),'活动页内容不完整');assert(await page.locator('.festival-mobile-hero > div').count()===0,'活动横幅仍含左下角附加文案');assert(await page.getByRole('button',{name:/复制专属邀请链接/}).count()===1,'邀请好友模块缺少邀请按钮');
+  await go(page,'/18plus');const confirm=page.getByRole('button',{name:/确认并进入/});assert(await confirm.isDisabled(),'年龄未勾选时按钮应禁用');const gate=await page.locator('.adult-gate').innerText();assert(!gate.includes('地区'),'年龄确认不应包含地区验证');await page.getByRole('checkbox',{name:'我已年满18周岁'}).check();await confirm.click();await page.waitForTimeout(100);assert(await page.locator('.adult-card').count()>=4,'专区首页未显示内容');await page.getByRole('tab',{name:'最新'}).click();assert(await page.locator('.adult-card').count()===20,'专区内容不是20部');assert(await page.getByRole('button',{name:'分享'}).count()===0,'专区不应提供公开分享按钮');
+  await go(page,'/search');await page.getByPlaceholder('搜索剧名或题材').fill('盲人的秘密');assert((await page.locator('.search-results').innerText()).includes('没有找到相关剧目'),'普通搜索泄露18+内容');
+  for(const path of ['/videos','/shorts','/comics','/help','/contact','/18plus/wishlist']){await go(page,path);assert(await page.locator('.phone-surface').isVisible(),`${path} 未正常渲染`);}
+  for(const path of ['/free','/rankings','/collections','/collections/x','/updates','/settings']){await go(page,path);assert((await page.locator('.route-layer').innerText()).includes('页面已下线'),`${path} 未失效`);}
+  await page.close();
+ }
+ assert(errors.length===0,'浏览器控制台错误：'+errors.join(' | '));
+ console.log('PASS: WEB 1.4.3 sync routes, home, membership, points, festival, adult gate/catalog, search isolation, 360/390/430 layout');
+}finally{await browser.close();}

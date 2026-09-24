@@ -1,54 +1,12 @@
 import type { Drama } from './dramas';
-
+import { assetUrl } from '../utils/assets';
 export type AdultTab = '首页' | '成人短剧' | '成人漫剧' | '原创' | '最新' | '热门';
-export type AdultDrama = Drama & { original: boolean };
-
-const adultItem = (
-  id: string,
-  title: string,
-  cover: string,
-  genre: Drama['genre'],
-  channel: Drama['channel'],
-  original = false,
-): AdultDrama => ({
-  id,
-  title,
-  cover: `/assets/adult/covers/${cover}`,
-  genre,
-  channel,
-  original,
-  tagline: '一封迟到的信，让原本平静的生活发生了变化。',
-  synopsis:
-    '一封迟到的信，让原本平静的生活发生了变化。追寻线索的途中，他们与旧友重逢，也遇见新的伙伴，在误会与理解之间寻找真相。在不断接近真相的过程中，他们也重新理解了信任与选择。',
-  status: '全 24 集',
+export type AdultDrama = Drama & { adult: true };
+const titles = [
+  '盲人的秘密','黑白之夜','真实的缅北','婊子谁都能上','玩元神救了我一命','禽满四合院：嫂子跪着要肉棒','全班地铁求生只有我一男生','共享逼时代','捉妖师：但是专捉美艳的妖妇','jiojio的禁忌之门','母上攻略','棋牌店的美女老板','全班地铁求生只有我一个男生','奸尸法医3','深夜加班绝望办公室','夜神月vs富江02','深夜加班绝望办公室单集','情侣主的清理工具','拼鸡鸡','流落荒岛全岛的女人都追着我要精液',
+];
+export const adultDramas: AdultDrama[] = titles.map((title, index) => {
+  const n = index + 1, id = `landscape-${String(n).padStart(2, '0')}`, cover = assetUrl(`assets/adult/landscape/${id}.webp`);
+  return { id, title, cover, thumbnail: cover, largeCover: cover, genre: '其他', channel: '真人短剧', format: 'live_action_drama', original: false, tagline: '', synopsis: '封面预览，剧情资料待补充。', status: '状态待确认', accessTier: 'coin_reserved', publicationStatus: 'draft', updateStatus: 'unknown', freeEpisodes: 0, episodePrice: 5, episodeCount: null, adult: true };
 });
-
-export const adultDramas: AdultDrama[] = [
-  adultItem('private-preview-1', '高三爱情故事', 'ui-0.jpg', '都市', '短剧', true),
-  adultItem('private-preview-2', '神瞳觉醒 第一季', 'ui-1.jpg', '悬疑', '短剧'),
-  adultItem('private-preview-3', '半兽人公司', 'ui-2.jpg', '奇幻', '短剧', true),
-  adultItem('private-preview-4', '鸡榜啼鸣', 'ui-3.jpg', '都市', '短剧'),
-  adultItem('private-preview-5', '日勤病栋', 'ui-4.jpg', '悬疑', '短剧', true),
-  adultItem('private-preview-6', '末日神舟', 'ui-5.jpg', '奇幻', '短剧'),
-  adultItem('adult-cover-6', '朱颜血系列之长途列车', 'ui-10.jpg', '悬疑', '漫剧', true),
-  adultItem('adult-cover-7', '出差', 'ui-11.jpg', '奇幻', '漫剧'),
-];
-
-export const adultBanners = [
-  {
-    id: 'adult-banner-1',
-    title: '全班地铁求生，只有我一个男生',
-    image: '/assets/adult/banners/banner-1.jpg',
-    genre: '悬疑 · 生存',
-    synopsis:
-      '末班地铁突然停驶，倒计时在车厢里亮起。一群同行者必须放下分歧，在未知站台与重重线索之间寻找出口。',
-  },
-  {
-    id: 'adult-banner-2',
-    title: '琼明神女录',
-    image: '/assets/adult/banners/banner-2.jpg',
-    genre: '古装 · 奇幻',
-    synopsis:
-      '一卷旧录牵动尘封往事，两位旅人在月下相遇，从山门到江湖，循着散落的线索前行。',
-  },
-];
+export const adultBanners = adultDramas.slice(0, 6).map(item => ({ id: item.id, title: item.title, image: item.cover, genre: '成人短剧', synopsis: '' }));

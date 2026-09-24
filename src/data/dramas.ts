@@ -1,59 +1,57 @@
-export type Channel = '推荐' | '短剧' | '漫剧';
-export type Genre = '全部' | '都市' | '古装' | '奇幻' | '悬疑' | '逆袭';
+import { assetUrl } from '../utils/assets';
+
+export type Channel = '推荐' | '真人短剧' | 'AI漫剧';
+export type Genre = '全部' | '都市情感' | '古装' | '奇幻' | '悬疑' | '热血逆袭' | '其他';
+export type ContentFormat = 'live_action_drama' | 'motion_comic' | 'short_film' | 'article';
+export type AccessTier = 'free' | 'basic' | 'premium' | 'coin_reserved';
+export type PublicationStatus = 'draft' | 'in_review' | 'published' | 'offline';
+export type UpdateStatus = 'unknown' | 'ongoing' | 'completed';
 
 export type Drama = {
-  id: string;
-  title: string;
-  genre: Exclude<Genre, '全部'>;
-  tagline: string;
-  synopsis: string;
-  cover: string;
-  status: string;
-  channel: Channel;
-  crop?: string;
-  region?: '内地' | '海外';
-  completion?: '连载中' | '已完结';
-  heat?: string;
+  id: string; title: string; genre: Exclude<Genre, '全部'>; tagline: string; synopsis: string;
+  cover: string; thumbnail: string; largeCover: string; status: string; channel: Channel;
+  format: ContentFormat; accessTier: AccessTier; publicationStatus: PublicationStatus;
+  updateStatus: UpdateStatus; original: boolean; freeEpisodes: number; episodePrice: number;
+  episodeCount: number | null; crop?: string; adult?: boolean;
 };
 
-const item = (n: number, title: string, genre: Drama['genre'], tagline: string, status: string, channel: Channel = '短剧', crop = '50% 50%'): Drama => ({
-  id: `drama-${String(n).padStart(2, '0')}`,
-  title,
-  genre,
-  tagline,
-  synopsis: `${tagline} 人物在一次意外相遇后被卷入新的选择，在误解与真相之间重新认识彼此，也找到属于自己的答案。`,
-  cover: `/assets/covers/drama-${String(n).padStart(2, '0')}-large.webp`,
-  status,
-  channel,
-  crop,
-  region: n % 5 === 0 ? '海外' : '内地',
-  completion: status.startsWith('全') ? '已完结' : '连载中',
-  heat: `${(8.2 + (n % 8) / 10).toFixed(1)}万在追`,
+const entries = [
+  [5, '凋零前，请对我偏执', '古装', '一纸姻缘，将两个人的命运悄然牵起。'],
+  [8, '月色不晚', '都市情感', '把未说出口的心事，交给今晚的月色。'],
+  [3, '盖世雄父', '热血逆袭', '平凡身份之下，藏着不平凡的守护。'],
+  [17, '兽世重生：这次换我疼你', '奇幻', '跨越陌生世界，再一次奔向你。'],
+  [4, '一日一载，武定乾坤', '热血逆袭', '于方寸之间，见少年意气与江湖风云。'],
+  [14, '油门踩到底！废柴车神逆袭', '热血逆袭', '握紧方向盘，驶向属于自己的答案。'],
+  [15, '皇帝微服出巡捡旧爱', '古装', '走出宫墙，一场意料之外的相逢。'],
+  [23, '辣妈翻身：陆长官的强制爱', '都市情感', '生活翻开新页，也让心动重新发生。'],
+  [26, '我家古董会说爱你', '奇幻', '旧物藏着时光，也藏着未完的故事。'],
+  [27, '拒当顾太太后，我惊艳全城', '都市情感', '从告别开始，找回闪闪发光的自己。'],
+  [29, '消失的厨神', '其他', '烟火升起的地方，总有温暖的故事。'],
+  [34, '长风踏歌', '古装', '长风起，踏歌行；一程山河，一场相知。'],
+  [1, '别相信完美婚姻', '悬疑', '看似完美的日常，藏着怎样的另一面？'],
+  [2, '灰姑娘孕事：王子的失落后裔', '奇幻', '命运写下伏笔，故事从一次相遇开始。'],
+  [6, '先婚后爱，爱你成瘾', '都市情感', '在日复一日的相处里，读懂心动。'],
+  [11, '战神护妻，杀出豪门', '热血逆袭', '风云变幻之间，守护是坚定的选择。'],
+  [20, '湖里真的有鳄鱼', '悬疑', '平静的水面之下，未知正在靠近。'],
+  [25, '人鱼公主归海', '奇幻', '循着海的回响，寻找真正的归处。'],
+] as const;
+
+// WEB 1.4.3 preview catalog is the source of truth. Unknown release fields stay unknown.
+export const dramas: Drama[] = entries.map(([n, title, genre, tagline]) => {
+  const id = `drama-${String(n).padStart(2, '0')}`;
+  const format: ContentFormat = [17, 4, 26, 2, 25].includes(n) ? 'motion_comic' : 'live_action_drama';
+  return {
+    id, title, genre, tagline, synopsis: tagline,
+    cover: assetUrl(`assets/covers/${id}-large.webp`), thumbnail: assetUrl(`assets/covers/${id}-small.webp`), largeCover: assetUrl(`assets/covers/${id}-large.webp`),
+    status: '状态待确认', channel: format === 'motion_comic' ? 'AI漫剧' : '真人短剧', format,
+    accessTier: 'coin_reserved', publicationStatus: 'draft', updateStatus: 'unknown', original: false,
+    freeEpisodes: 6, episodePrice: 5, episodeCount: null,
+  };
 });
 
-export const dramas: Drama[] = [
-  item(1, '别相信完美婚姻', '悬疑', '看似完美的日常，藏着怎样的另一面？', '全 48 集'),
-  item(8, '月色不晚', '都市', '把未说出口的心事，交给今晚的月色。', '更新至 32 集'),
-  item(5, '凋零前，请对我偏执', '古装', '一纸姻缘，将两个人的命运悄然牵起。', '全 60 集'),
-  item(17, '兽世重生：这次换我疼你', '奇幻', '跨越陌生世界，再一次奔向你。', '更新至 24 集', '漫剧'),
-  item(34, '长风踏歌', '古装', '长风起，踏歌行；一程山河，一场相知。', '全 40 集'),
-  item(3, '盖世雄父', '逆袭', '平凡身份之下，藏着不平凡的守护。', '全 72 集'),
-  item(4, '一日一载，武定乾坤', '逆袭', '于方寸之间，见少年意气与江湖风云。', '更新至 36 集', '漫剧'),
-  item(14, '油门踩到底！废柴车神逆袭', '逆袭', '握紧方向盘，驶向属于自己的答案。', '全 54 集'),
-  item(15, '皇帝微服出巡捡旧爱', '古装', '走出宫墙，一场意料之外的相逢。', '更新至 28 集'),
-  item(23, '辣妈翻身：陆长官的强制爱', '都市', '生活翻开新页，也让心动重新发生。', '全 66 集'),
-  item(26, '我家古董会说爱你', '奇幻', '旧物藏着时光，也藏着未完的故事。', '更新至 18 集', '漫剧'),
-  item(27, '拒当顾太太后，我惊艳全城', '都市', '从告别开始，找回闪闪发光的自己。', '全 50 集'),
-  item(29, '消失的厨神', '悬疑', '烟火升起的地方，总有温暖的故事。', '更新至 20 集'),
-  item(2, '灰姑娘孕事：王子的失落后裔', '奇幻', '命运写下伏笔，故事从一次相遇开始。', '全 42 集', '漫剧'),
-  item(6, '先婚后爱，爱你成瘾', '都市', '在日复一日的相处里，读懂心动。', '全 64 集'),
-  item(11, '战神护妻，杀出豪门', '逆袭', '风云变幻之间，守护是坚定的选择。', '更新至 45 集'),
-  item(20, '湖里真的有鳄鱼', '悬疑', '平静的水面之下，未知正在靠近。', '全 30 集'),
-  item(25, '人鱼公主归海', '奇幻', '循着海的回响，寻找真正的归处。', '更新至 22 集', '漫剧'),
-];
-
+export const genres: Genre[] = ['全部', '都市情感', '古装', '奇幻', '悬疑', '热血逆袭', '其他'];
 export const channelContent: Record<Channel, Drama[]> = {
   推荐: dramas,
-  短剧: dramas.filter((d) => d.channel === '短剧'),
-  漫剧: dramas.filter((d) => d.channel === '漫剧'),
+  真人短剧: dramas.filter(d => d.format === 'live_action_drama'),
+  AI漫剧: dramas.filter(d => d.format === 'motion_comic'),
 };
