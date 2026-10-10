@@ -7,6 +7,6 @@ const titles = [
 ];
 export const adultDramas: AdultDrama[] = titles.map((title, index) => {
   const n = index + 1, id = `landscape-${String(n).padStart(2, '0')}`, cover = assetUrl(`assets/adult/landscape/${id}.webp`);
-  return { id, title, cover, thumbnail: cover, largeCover: cover, genre: '其他', channel: '真人短剧', format: 'live_action_drama', original: false, tagline: '', synopsis: '封面预览，剧情资料待补充。', status: '状态待确认', accessTier: 'coin_reserved', publicationStatus: 'draft', updateStatus: 'unknown', freeEpisodes: 0, episodePrice: 5, episodeCount: null, adult: true };
+  return { id, title, cover, thumbnail: cover, largeCover: cover, genre: '其他', channel: '真人短剧', format: 'live_action_drama', original: false, tagline: '', synopsis: '剧情资料待补充。', status: '状态待确认', accessTier: 'coin_reserved', publicationStatus: 'draft', updateStatus: 'unknown', freeEpisodes: 0, episodePrice: 5, episodeCount: null, adult: true };
 });
 export const adultBanners = adultDramas.slice(0, 6).map(item => ({ id: item.id, title: item.title, image: item.cover, genre: '成人短剧', synopsis: '' }));

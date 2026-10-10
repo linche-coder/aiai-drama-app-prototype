@@ -44,8 +44,8 @@ export const dramas: Drama[] = entries.map(([n, title, genre, tagline]) => {
     id, title, genre, tagline, synopsis: tagline,
     cover: assetUrl(`assets/covers/${id}-large.webp`), thumbnail: assetUrl(`assets/covers/${id}-small.webp`), largeCover: assetUrl(`assets/covers/${id}-large.webp`),
     status: '状态待确认', channel: format === 'motion_comic' ? 'AI漫剧' : '真人短剧', format,
-    accessTier: 'coin_reserved', publicationStatus: 'draft', updateStatus: 'unknown', original: false,
-    freeEpisodes: 6, episodePrice: 5, episodeCount: null,
+    accessTier: 'free', publicationStatus: 'draft', updateStatus: 'unknown', original: false,
+    freeEpisodes: 0, episodePrice: 0, episodeCount: null,
   };
 });
 

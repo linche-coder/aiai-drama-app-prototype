@@ -11,7 +11,8 @@ import { AuthSheet } from './components/AuthSheet';
 import { AuthLinkPage } from './components/AuthLinkPage';
 import { ReelsScreen } from './components/ReelsScreen';
 import { SearchSheet } from './components/Sheets';
-import { FestivalPage, PointsPage } from './components/BusinessScreens';
+import { PointsPage } from './components/BusinessScreens';
+import { AutumnPage } from './components/AutumnPage';
 import { Empty, PageShell } from './components/Common';
 import { adultDramas } from './data/adult';
 import { dramas, type Channel, type Drama } from './data/dramas';
@@ -54,7 +55,7 @@ function AppContent({ auth, setAuth }: { auth: boolean; setAuth: (v: boolean) =>
   else if (path === '/account/reset-password' || path === '/account/verify') overlay = <AuthLinkPage key={route} route={route} onBack={back} onLogin={() => { setAuthMode('login'); setAuth(true); }}/>;
   else if (path.startsWith('/account/')) overlay = null;
   else if (path === '/membership') overlay = <MembershipPage {...common}/>;
-  else if (path === '/festival') overlay = <FestivalPage navigate={nav} onBack={back}/>;
+  else if (path === '/autumn') overlay = <AutumnPage navigate={nav} onBack={back}/>;
   else if (path === '/me/points') overlay = <PointsPage navigate={nav} onBack={back}/>;
   else if (path === '/checkout' || path === '/payment-result' || path.startsWith('/me/orders')) overlay = <CommercePage key={route} {...common}/>;
   else if (path.startsWith('/me/')) overlay = <AccountPage key={path} kind={path.slice(4)} {...common}/>;
@@ -73,6 +74,6 @@ function AppContent({ auth, setAuth }: { auth: boolean; setAuth: (v: boolean) =>
     <SearchSheet open={search} items={searchAdult ? adultDramas : dramas} onClose={() => { setSearch(false); if (path === '/search') navigate('/'); else if (path === '/18plus/search') navigate('/18plus'); }} onOpen={open}/>
     <AuthSheet initialMode={authMode} open={auth} onClose={() => { setAuth(false); if (['/account/login', '/account/register', '/account/forgot-password', '/account/session-expired'].includes(path)) { const target = params.get('returnTo') || '/'; navigate(target.startsWith('/') && !target.startsWith('//') && !target.startsWith('/account/') ? target : '/', true); } }} onPolicy={kind => { setAuth(false); navigate('/' + kind); }}/>
     {splash && <BrandSplash replayKey={replayKey} onDone={finishSplash}/>}
-  </div></div><aside className="demo-controls" aria-label="预览控制"><span className="demo-label"><MonitorSmartphone size={15}/>MOBILE PREVIEW</span><h2>爱爱短剧 APP</h2><p>移动端页面与交互预览</p><button className="replay-button" onClick={() => { setReplayKey(v => v + 1); setSplash(true); }}><RotateCcw size={17}/>重播品牌开屏</button><div className="control-group"><span>预览宽度</span><div className="segmented sizes">{[360, 390, 430].map(w => <button key={w} data-active={width === w} onClick={() => setWidth(w)}>{w}</button>)}</div></div></aside></div>;
+  </div></div><aside className="demo-controls" aria-label="设备视图"><span className="demo-label"><MonitorSmartphone size={15}/>MOBILE VIEW</span><h2>爱爱短剧 APP</h2><p>移动端页面与交互</p><button className="replay-button" onClick={() => { setReplayKey(v => v + 1); setSplash(true); }}><RotateCcw size={17}/>重播品牌开屏</button><div className="control-group"><span>界面宽度</span><div className="segmented sizes">{[360, 390, 430].map(w => <button key={w} data-active={width === w} onClick={() => setWidth(w)}>{w}</button>)}</div></div></aside></div>;
 }
 const encId = encodeURIComponent;

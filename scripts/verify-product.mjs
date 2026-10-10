@@ -16,7 +16,6 @@ async function mock(page){
   if(path==='/session')value={subject:'verify-user',nickname:'验收用户',tier:'free',roles:[],expiresAt:null,membership:null};
   else if(path==='/me/points')value={summary:{balance:66,memberBalance:21,paidViewActive:false,permanentMember:false,membershipExpiresAt:null,checkedInToday:false,checkInType:null},transactions:[],memberTransactions:[],unlocks:[]};
   else if(path==='/me/overview')value={checkIn:{checkedInToday:false,rewardType:null,rewardAmount:0,streakDays:2,cycleDay:3,nextResetAt:'2026-09-24T16:00:00Z',rewards:Array.from({length:7},(_,i)=>({day:i+1,points:i===6?4:1,status:i<2?'claimed':i===2?'today':'upcoming'}))},trial:{status:'available',startsAt:null,expiresAt:null}};
-  else if(path==='/festival')value={activityId:'midautumn-national-2026',phase:'active',claimed:false,appClaimed:false,invitationCode:'VERIFY2026',successfulInvites:2,rewardedInvites:2,participationReward:0,invitationReward:100,appReward:0,totalReward:100,permanentBalance:66,records:[]};
   else if(path==='/adult/consent'&&method==='POST')value={granted:true};
   else if(path==='/adult/consent'&&method==='DELETE')value={};
   else if(path==='/orders')value=[];
@@ -36,13 +35,23 @@ try{
   await go(page,'/');
   const nav=await page.locator('.bottom-nav button').allTextContents();assert(nav.join('|').includes('首页')&&nav.join('|').includes('刷剧')&&nav.join('|').includes('18+专区')&&nav.join('|').includes('追剧')&&nav.join('|').includes('我的'),'底部导航不完整');
   const home=await page.locator('.phone-surface').innerText();for(const old of ['排行榜','精选专题','免费专区','追更日历','本周热榜','编辑精选','猜你喜欢'])assert(!home.includes(old),`首页仍包含 ${old}`);
-  assert(home.includes('月满中秋 · 礼遇国庆')&&home.includes('任务最高领 350 永久积分'),'首页轮播缺少双节活动入口');
-  assert(await page.locator('.hero-festival-card .hero-festival-title').count()===1,'首页活动轮播缺少主文案图层');
+  assert(await page.locator('.autumn-home-drawer.is-expanded').count()===1,'首页金秋横幅未展开');
+  assert(await page.locator('.autumn-home-drawer-full img').count()===1,'首页金秋主视觉缺失');
+  assert(await page.locator('.hero-card').count()===5,'剧目轮播内容数量不正确');
+  await page.getByRole('button',{name:'收起金秋活动横幅'}).click();
+  assert(await page.locator('.autumn-home-drawer.is-collapsed').count()===1,'金秋横幅未收起');assert(await page.locator('.autumn-home-toggle .lucide-chevron-down').count()===1,'收起后未显示展开图标');
+  await page.getByRole('button',{name:'展开金秋活动横幅'}).click();
+  assert(await page.locator('.autumn-home-drawer.is-expanded').count()===1,'金秋横幅未重新展开');assert(await page.locator('.autumn-home-toggle .lucide-chevron-up').count()===1,'展开后未显示向上收起图标');
+  await page.locator('.autumn-home-drawer-full .autumn-home-banner-link').click();
+  assert(page.url().includes('#/autumn'),'金秋横幅未进入活动页');
+  await go(page,'/');
   assert(home.includes('热门推荐')&&home.includes('最新更新'),'首页业务结构不完整');
+  for(const old of ['国庆','中秋','双节','测试','效果预览','演示效果'])assert(!home.includes(old),'首页仍包含 '+old);
   const overflow=await page.locator('.phone-surface').evaluate(el=>el.scrollWidth>el.clientWidth+1);assert(!overflow,`${width}px 存在横向溢出`);
   await go(page,'/membership');const membership=await page.locator('.membership-page').innerText();for(const expected of ['¥88','¥188','¥388','220 永久积分','¥10.9','24 小时免费畅看'])assert(membership.includes(expected),`会员页缺少 ${expected}`);assert(await page.locator('.recharge-emblem svg').count()===3,'会员方案缺少 WEB 分层徽章');for(const old of ['19.9','39.9','¥168','¥328','60 积分','200 积分','580 积分','1500 积分','年龄与地区'])assert(!membership.includes(old),`会员页仍含旧文案 ${old}`);
   await go(page,'/me/points');const points=await page.locator('.subpage').innerText();assert(points.includes('永久积分')&&points.includes('会员积分')&&points.includes('每日签到')&&points.includes('20 会员积分')&&points.includes('50 会员积分')&&points.includes('100 会员积分'),'积分页规则不完整');
-  await go(page,'/festival');const festival=await page.locator('.subpage').innerText();assert(festival.includes('midautumn-national-2026')&&festival.includes('APP 专享 50 永久积分')&&festival.includes('畅看月卡')&&festival.includes('+7 天')&&festival.includes('+30 天'),'活动页内容不完整');assert(await page.locator('.festival-mobile-hero > div').count()===0,'活动横幅仍含左下角附加文案');assert(await page.getByRole('button',{name:/复制专属邀请链接/}).count()===1,'邀请好友模块缺少邀请按钮');
+  await go(page,'/autumn');const autumn=await page.locator('.subpage').innerText();for(const expected of ['绿色剧集，全剧免费追','再送 50 积分','再送 7 天','再送 15 天','+20','+1','登录体验礼'])assert(autumn.includes(expected),'金秋活动页缺少 '+expected);assert(await page.locator('.autumn-mobile-hero img').count()===1,'金秋活动主视觉缺失');
+  const heroLayout=await page.evaluate(()=>{const header=document.querySelector('.subpage-header')?.getBoundingClientRect(),image=document.querySelector('.autumn-mobile-hero img')?.getBoundingClientRect(),content=document.querySelector('.subpage-content');return {clear:!!header&&!!image&&image.top>=header.bottom+12,uncropped:!!image&&Math.abs(image.width-image.height)<2,overflow:!!content&&content.scrollWidth>content.clientWidth+1};});assert(heroLayout.clear&&heroLayout.uncropped,'活动头图被标题栏遮挡或裁切');assert(!heroLayout.overflow,width+'px 活动页横向溢出');
   await go(page,'/18plus');const confirm=page.getByRole('button',{name:/确认并进入/});assert(await confirm.isDisabled(),'年龄未勾选时按钮应禁用');const gate=await page.locator('.adult-gate').innerText();assert(!gate.includes('地区'),'年龄确认不应包含地区验证');await page.getByRole('checkbox',{name:'我已年满18周岁'}).check();await confirm.click();await page.waitForTimeout(100);assert(await page.locator('.adult-card').count()>=4,'专区首页未显示内容');await page.getByRole('tab',{name:'最新'}).click();assert(await page.locator('.adult-card').count()===20,'专区内容不是20部');assert(await page.getByRole('button',{name:'分享'}).count()===0,'专区不应提供公开分享按钮');
   await go(page,'/search');await page.getByPlaceholder('搜索剧名或题材').fill('盲人的秘密');assert((await page.locator('.search-results').innerText()).includes('没有找到相关剧目'),'普通搜索泄露18+内容');
   for(const path of ['/videos','/shorts','/comics','/help','/contact','/18plus/wishlist']){await go(page,path);assert(await page.locator('.phone-surface').isVisible(),`${path} 未正常渲染`);}
@@ -50,5 +59,5 @@ try{
   await page.close();
  }
  assert(errors.length===0,'浏览器控制台错误：'+errors.join(' | '));
- console.log('PASS: WEB 1.4.3 sync routes, home, membership, points, festival, adult gate/catalog, search isolation, 360/390/430 layout');
+ console.log('PASS: WEB 1.6 content sync, autumn, membership, points, adult gate/catalog, search isolation, 360/390/430 layout');
 }finally{await browser.close();}

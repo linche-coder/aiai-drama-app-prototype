@@ -1,13 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion } from 'motion/react';
-import { ArrowRight, Play } from 'lucide-react';
+import { Play } from 'lucide-react';
 import type { Drama } from '../data/dramas';
 import { useReducedMotion } from '../hooks/useReducedMotion';
-import { assetUrl } from '../utils/assets';
 
-type HeroSlide = { kind: 'festival'; id: string; title: string; genre: string; status: string; tagline: string; cover: string } | { kind: 'drama'; item: Drama };
+type HeroSlide = { item: Drama };
 
-export function HeroCarousel({ items, onOpen, onFestival }: { items: Drama[]; onOpen: (item: Drama) => void; onFestival: () => void }) {
+export function HeroCarousel({ items, onOpen }: { items: Drama[]; onOpen: (item: Drama) => void }) {
   const reduced = useReducedMotion();
   const frame = useRef<HTMLDivElement>(null);
   const [index, setIndex] = useState(0);
@@ -25,10 +24,7 @@ export function HeroCarousel({ items, onOpen, onFestival }: { items: Drama[]; on
     if (frame.current) observer.observe(frame.current);
     return () => observer.disconnect();
   }, []);
-  const slides: HeroSlide[] = [
-    { kind: 'festival', id: 'festival-2026', title: '月满中秋 · 礼遇国庆', genre: '双节活动', status: '活动进行中', tagline: '任务最高领 350 永久积分，会员限时加赠畅看天数', cover: assetUrl('assets/festival/aiai-festival-v4-background-mobile.png') },
-    ...items.map(item => ({ kind: 'drama' as const, item })),
-  ];
+  const slides: HeroSlide[] = items.map(item => ({ item }));
   useEffect(() => setIndex(0), [items]);
   useEffect(() => {
     if (manual || reduced || slides.length < 2) return;
@@ -75,11 +71,11 @@ export function HeroCarousel({ items, onOpen, onFestival }: { items: Drama[]; on
             const offset = offsetFor(itemIndex);
             const isActive = offset === 0;
             const isVisible = Math.abs(offset) <= 1;
-            const item = slide.kind === 'drama' ? slide.item : slide;
+            const item = slide.item;
             return (
               <motion.button
                 key={item.id}
-                className={`hero-card${slide.kind === 'festival' ? ' hero-festival-card' : ''}`}
+                className="hero-card"
                 data-active={isActive}
                 data-offset={offset}
                 style={{
@@ -91,13 +87,13 @@ export function HeroCarousel({ items, onOpen, onFestival }: { items: Drama[]; on
                 }}
                 onClick={() => {
                   if (performance.now() < suppressClickUntil.current) return;
-                  if (isActive) slide.kind === 'festival' ? onFestival() : onOpen(slide.item);
+                  if (isActive) onOpen(slide.item);
                   else {
                     setManual(true);
                     setIndex(itemIndex);
                   }
                 }}
-                aria-label={slide.kind === 'festival' ? '查看中秋国庆双节活动' : `查看《${item.title}》预览`}
+                aria-label={'查看《' + item.title + '》'}
                 animate={{
                   x: offset * cardWidth * .94,
                   scale: isActive ? 1 : .91,
@@ -105,11 +101,9 @@ export function HeroCarousel({ items, onOpen, onFestival }: { items: Drama[]; on
                 }}
                 transition={{ duration: reduced ? 0 : .3, ease: [.22, 1, .36, 1] }}
               >
-                <img src={item.cover} alt={item.title} draggable={false} style={{ objectPosition: slide.kind === 'drama' ? slide.item.crop : 'center' }} />
-                {slide.kind === 'festival' && <img className="hero-festival-title" src={assetUrl('assets/festival/aiai-festival-title-350-transparent.png')} alt="月满中秋，礼遇国庆，最高领350积分" draggable={false}/>}
+                <img src={item.cover} alt={item.title} draggable={false} style={{ objectPosition: item.crop }} />
                 <span className="hero-shade" />
                 {isActive && <span className="hero-badge">{item.genre}</span>}
-                {isActive && slide.kind === 'festival' && <span className="hero-festival-cta">立即查看 <ArrowRight size={14}/></span>}
               </motion.button>
             );
           })}
@@ -117,7 +111,7 @@ export function HeroCarousel({ items, onOpen, onFestival }: { items: Drama[]; on
       </div>
       <div className="dots" aria-label="轮播位置">
         {slides.map((slide, itemIndex) => {
-          const item = slide.kind === 'drama' ? slide.item : slide;
+          const item = slide.item;
           return (
           <button
             key={item.id}
@@ -132,13 +126,13 @@ export function HeroCarousel({ items, onOpen, onFestival }: { items: Drama[]; on
       </div>
       {active && (
         <div className="hero-summary">
-          <button className="hero-copy" onClick={() => active.kind === 'festival' ? onFestival() : onOpen(active.item)}>
-            <strong>{active.kind === 'festival' ? active.title : active.item.title}</strong>
-            <span>{active.kind === 'festival' ? active.genre : active.item.genre} · {active.kind === 'festival' ? active.status : active.item.status}</span>
-            <small>{active.kind === 'festival' ? active.tagline : active.item.tagline}</small>
+          <button className="hero-copy" onClick={() => onOpen(active.item)}>
+            <strong>{active.item.title}</strong>
+            <span>{active.item.genre} · {active.item.status}</span>
+            <small>{active.item.tagline}</small>
           </button>
-          <button className="hero-play" onClick={() => active.kind === 'festival' ? onFestival() : onOpen(active.item)} aria-label={active.kind === 'festival' ? '查看双节活动' : `播放${active.item.title}`}>
-            {active.kind === 'festival' ? <ArrowRight size={18}/> : <Play size={18} fill="currentColor" />}
+          <button className="hero-play" onClick={() => onOpen(active.item)} aria-label={'播放' + active.item.title}>
+            <Play size={18} fill="currentColor" />
           </button>
         </div>
       )}

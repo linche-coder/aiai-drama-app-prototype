@@ -3,6 +3,7 @@ import { ArrowRight, Crown, Filter, Play, Search, SlidersHorizontal } from 'luci
 import { AnimatePresence, motion } from 'motion/react';
 import { channelContent, genres, type Channel, type Drama, type Genre } from '../data/dramas';
 import { HeroCarousel } from './HeroCarousel';
+import { AutumnHomeBanner } from './AutumnHomeBanner';
 import { useApp } from '../state/appState';
 const go = (path: string) => { history.pushState({ aiaiApp: true }, '', '#' + path); window.dispatchEvent(new Event('hashchange')); };
 
@@ -20,7 +21,7 @@ function ContinueWatching({ item, onOpen }: { item: Drama; onOpen: (item: Drama)
 function RecommendPage({ items, hasHistory, onOpen }: { items: Drama[]; hasHistory: boolean; onOpen: (item: Drama) => void }) {
   const { records } = useApp(), recent = items.find(d => d.id === records.history[0]?.contentId), [genre, setGenre] = useState<Genre>('全部');
   const filtered = genre === '全部' ? items : items.filter(item => item.genre === genre);
-  return <><HeroCarousel items={items.slice(0, 5)} onOpen={onOpen} onFestival={() => go('/festival')}/>{hasHistory && recent && <ContinueWatching item={recent} onOpen={onOpen}/>}<section className="section browse-section"><SectionTitle title="热门推荐" subtitle="精选好故事，下一部心动就在这里"/><div className="quick-chips home-genres">{genres.map(value => <button key={value} data-active={genre === value} onClick={() => setGenre(value)}>{value}</button>)}</div><Cards items={filtered.slice(0, 10)} onOpen={onOpen}/></section><section className="section browse-section"><SectionTitle title="最新更新" subtitle="发现新故事，让期待继续"/><Cards items={items.slice(10)} onOpen={onOpen}/></section></>;
+  return <><AutumnHomeBanner onOpen={() => go('/autumn')}/><HeroCarousel items={items.slice(0, 5)} onOpen={onOpen}/>{hasHistory && recent && <ContinueWatching item={recent} onOpen={onOpen}/>}<section className="section browse-section"><SectionTitle title="热门推荐" subtitle="精选好故事，下一部心动就在这里"/><div className="quick-chips home-genres">{genres.map(value => <button key={value} data-active={genre === value} onClick={() => setGenre(value)}>{value}</button>)}</div><Cards items={filtered.slice(0, 10)} onOpen={onOpen}/></section><section className="section browse-section"><SectionTitle title="最新更新" subtitle="发现新故事，让期待继续"/><Cards items={items.slice(10)} onOpen={onOpen}/></section></>;
 }
 function ChannelPage({ items, channel, onOpen }: { items: Drama[]; channel: Exclude<Channel, '推荐'>; onOpen: (item: Drama) => void }) {
   const [genre, setGenre] = useState<Genre>('全部'), [expanded, setExpanded] = useState(false);

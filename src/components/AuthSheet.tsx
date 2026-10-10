@@ -34,7 +34,6 @@ export function AuthSheet({ open, onClose, onPolicy, initialMode = 'login' }: { 
     {mode !== 'forgot' && <div className="agreement"><label><input type="checkbox" checked={agreed} onChange={e => setAgreed(e.target.checked)}/>我已阅读并同意</label><button type="button" onClick={() => onPolicy('terms')}>用户协议</button><span>与</span><button type="button" onClick={() => onPolicy('privacy')}>隐私政策</button></div>}
     {error && <p className="form-error" role="alert">{error}</p>}
     {done ? <p role="status">如果该邮箱已绑定账号，你将收到重置邮件，请查看邮箱。</p> : <button className="primary-button" disabled={busy}>{busy ? '正在提交…' : mode === 'login' ? '登录' : mode === 'register' ? '注册并登录' : '发送重置邮件'}</button>}
-    {import.meta.env.DEV && mode === 'login' && import.meta.env.VITE_PREVIEW_PASSWORD && <div className="preview-accounts"><small>本地样式测试</small><div>{[[import.meta.env.VITE_PREVIEW_USER, '普通'], [import.meta.env.VITE_PREVIEW_VIP, '会员']].filter(([value]) => value).map(([value, label]) => <button key={label} type="button" disabled={busy} onClick={() => { setAccount(value); setPassword(import.meta.env.VITE_PREVIEW_PASSWORD); setAgreed(true); }}>填入{label}账号</button>)}</div></div>}
     <div className="auth-links">{mode === 'login' ? <><button type="button" disabled={busy} onClick={() => change('register')}>注册新账号</button><button type="button" disabled={busy} onClick={() => change('forgot')}>忘记密码？</button></> : <button type="button" disabled={busy} onClick={() => change('login')}>返回登录</button>}</div>
   </form></Sheet>;
 }
